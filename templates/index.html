@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YouTube Transcript Summarizer</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f172a;
+      --bg2:       #1e293b;
+      --bg3:       #273548;
+      --accent:    #6366f1;
+      --accent2:   #818cf8;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --yellow:    #f59e0b;
+      --text:      #e2e8f0;
+      --text2:     #94a3b8;
+      --border:    #334155;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 60%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 42px; height: 42px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+
+    .logo h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .logo p { font-size: 0.78rem; color: var(--text2); }
+
+    .gpu-badge {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.78rem;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .gpu-badge .dot {
+      width: 8px; height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+
+    /* ── Main Layout ──────────────────────────────────────────────────────── */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* ── Input Card ───────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+    }
+
+    .url-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .url-input {
+      flex: 1;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .url-input:focus { border-color: var(--accent); }
+    .url-input::placeholder { color: var(--text2); }
+
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 28px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn:hover   { background: var(--accent2); }
+    .btn:active  { transform: scale(0.97); }
+    .btn:disabled {
+      background: var(--bg3);
+      color: var(--text2);
+      cursor: not-allowed;
+    }
+
+    /* ── Format checkboxes ────────────────────────────────────────────────── */
+    .formats {
+      display: flex;
+      gap: 16px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .fmt-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      color: var(--text2);
+      user-select: none;
+    }
+
+    .fmt-label input[type=checkbox] {
+      width: 16px; height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* ── Progress ─────────────────────────────────────────────────────────── */
+    #progress-section { display: none; }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .progress-msg {
+      font-size: 0.9rem;
+      color: var(--text2);
+    }
+
+    .progress-pct {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent2);
+    }
+
+    .progress-bar-bg {
+      background: var(--bg);
+      border-radius: 99px;
+      height: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    /* ── Steps indicator ──────────────────────────────────────────────────── */
+    .steps {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      position: relative;
+    }
+
+    .steps::before {
+      content: "";
+      position: absolute;
+      top: 14px; left: 14px; right: 14px;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      z-index: 1;
+      flex: 1;
+    }
+
+    .step-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      transition: all 0.3s;
+    }
+
+    .step.active  .step-dot { border-color: var(--accent); background: var(--accent); color: white; }
+    .step.done    .step-dot { border-color: var(--green);  background: var(--green);  color: white; }
+
+    .step-label {
+      font-size: 0.72rem;
+      color: var(--text2);
+      text-align: center;
+    }
+
+    .step.active .step-label { color: var(--accent2); }
+    .step.done   .step-label { color: var(--green); }
+
+    /* ── Results ──────────────────────────────────────────────────────────── */
+    #results-section { display: none; }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .stat-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-box .val {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent2);
+    }
+
+    .stat-box .lbl {
+      font-size: 0.75rem;
+      color: var(--text2);
+      margin-top: 4px;
+    }
+
+    /* ── Keywords ─────────────────────────────────────────────────────────── */
+    .keyword-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .kw-tag {
+      background: #1e1b4b;
+      border: 1px solid var(--accent);
+      color: var(--accent2);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.82rem;
+    }
+
+    /* ── Notes viewer ─────────────────────────────────────────────────────── */
+    .notes-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      max-height: 420px;
+      overflow-y: auto;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: var(--text);
+      margin-top: 12px;
+      font-family: "Consolas", "Courier New", monospace;
+    }
+
+    .notes-box::-webkit-scrollbar       { width: 6px; }
+    .notes-box::-webkit-scrollbar-track { background: var(--bg2); }
+    .notes-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Downloads ────────────────────────────────────────────────────────── */
+    .download-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .dl-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: border-color 0.2s, background 0.2s;
+      cursor: pointer;
+    }
+
+    .dl-btn:hover { border-color: var(--accent); background: #1e1b4b; color: var(--accent2); }
+
+    .dl-btn .icon { font-size: 1.1rem; }
+
+    .dl-btn.md   .icon { color: #64748b; }
+    .dl-btn.pdf  .icon { color: #ef4444; }
+    .dl-btn.docx .icon { color: #3b82f6; }
+
+    /* ── Error ────────────────────────────────────────────────────────────── */
+    #error-section {
+      display: none;
+      background: #2d1515;
+      border: 1px solid var(--red);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      color: #fca5a5;
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+
+    #error-section strong { color: var(--red); }
+
+    /* ── Section label ────────────────────────────────────────────────────── */
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      header { flex-direction: column; align-items: flex-start; }
+      .url-row { flex-direction: column; }
+      .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">▶</div>
+    <div>
+      <h1>YouTube Transcript Summarizer</h1>
+      <p>CUDA-Accelerated NLP &nbsp;·&nbsp; HuggingFace Transformers</p>
+    </div>
+  </div>
+  <div class="gpu-badge">
+    <div class="dot"></div>
+    {{ device }} &nbsp;·&nbsp; {{ gpu_name }}{% if vram %} ({{ vram }}){% endif %}
+  </div>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Input Card -->
+  <div class="card">
+    <h2>Summarize a YouTube Video</h2>
+    <div class="url-row">
+      <input
+        id="url-input"
+        class="url-input"
+        type="text"
+        placeholder="https://www.youtube.com/watch?v=..."
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="btn" id="go-btn" onclick="startJob()">Summarize</button>
+    </div>
+    <div class="formats">
+      <span style="font-size:0.85rem;color:var(--text2);margin-right:4px;">Export as:</span>
+      <label class="fmt-label"><input type="checkbox" id="fmt-md"   checked> Markdown</label>
+      <label class="fmt-label"><input type="checkbox" id="fmt-pdf"  checked> PDF</label>
+      <label class="fmt-label"><input type="checkbox" id="fmt-docx" checked> Word (DOCX)</label>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="error-section">
+    <strong>Error: </strong><span id="error-msg"></span>
+  </div>
+
+  <!-- Progress Card -->
+  <div class="card" id="progress-section">
+    <h2>Processing</h2>
+    <div class="progress-header">
+      <span class="progress-msg" id="progress-msg">Starting...</span>
+      <span class="progress-pct" id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+
+    <!-- Steps -->
+    <div class="steps" style="margin-top:20px;">
+      <div class="step" id="step-1">
+        <div class="step-dot">1</div>
+        <div class="step-label">Fetch<br>Transcript</div>
+      </div>
+      <div class="step" id="step-2">
+        <div class="step-dot">2</div>
+        <div class="step-label">CUDA<br>Summarize</div>
+      </div>
+      <div class="step" id="step-3">
+        <div class="step-dot">3</div>
+        <div class="step-label">Extract<br>Keywords</div>
+      </div>
+      <div class="step" id="step-4">
+        <div class="step-dot">4</div>
+        <div class="step-label">Generate<br>Notes</div>
+      </div>
+      <div class="step" id="step-5">
+        <div class="step-dot">5</div>
+        <div class="step-label">Export<br>Files</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Card -->
+  <div id="results-section">
+
+    <!-- Stats -->
+    <div class="card">
+      <h2>Results</h2>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="val" id="stat-words">-</div>
+          <div class="lbl">Words Fetched</div>
+        </div>
+        <div class="stat-box">
+          <div class="val" id="stat-chunks">-</div>
+          <div class="lbl">Sections</div>
+        </div>
+        <div class="stat-box">
+          <div class="val" id="stat-kw">-</div>
+          <div class="lbl">Keywords</div>
+        </div>
+        <div class="stat-box">
+          <div class="val" id="stat-source">-</div>
+          <div class="lbl">Source</div>
+        </div>
+      </div>
+
+      <!-- Keywords -->
+      <div class="section-title">Keywords & Entities</div>
+      <div class="keyword-list" id="kw-list"></div>
+    </div>
+
+    <!-- Notes preview -->
+    <div class="card">
+      <h2>Generated Notes</h2>
+      <div class="notes-box" id="notes-box"></div>
+    </div>
+
+    <!-- Downloads -->
+    <div class="card">
+      <h2>Download Files</h2>
+      <div class="download-row" id="download-row"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+  let pollInterval = null;
+
+  function getFormats() {
+    const fmts = [];
+    if (document.getElementById("fmt-md").checked)   fmts.push("md");
+    if (document.getElementById("fmt-pdf").checked)  fmts.push("pdf");
+    if (document.getElementById("fmt-docx").checked) fmts.push("docx");
+    return fmts.length ? fmts : ["md"];
+  }
+
+  function setStep(progress) {
+    const steps = [
+      { id: "step-1", min: 5  },
+      { id: "step-2", min: 30 },
+      { id: "step-3", min: 75 },
+      { id: "step-4", min: 88 },
+      { id: "step-5", min: 92 },
+    ];
+    steps.forEach((s, i) => {
+      const el = document.getElementById(s.id);
+      const next = steps[i + 1];
+      el.classList.remove("active", "done");
+      if (progress >= (next ? next.min : 100)) {
+        el.classList.add("done");
+        el.querySelector(".step-dot").textContent = "✓";
+      } else if (progress >= s.min) {
+        el.classList.add("active");
+      }
+    });
+  }
+
+  async function startJob() {
+    const url = document.getElementById("url-input").value.trim();
+    if (!url) {
+      alert("Please paste a YouTube URL first!");
+      return;
+    }
+
+    // Reset UI
+    document.getElementById("error-section").style.display    = "none";
+    document.getElementById("results-section").style.display  = "none";
+    document.getElementById("progress-section").style.display = "block";
+    document.getElementById("go-btn").disabled = true;
+    document.getElementById("progress-fill").style.width = "0%";
+    document.getElementById("progress-pct").textContent  = "0%";
+    document.getElementById("progress-msg").textContent  = "Starting...";
+    ["step-1","step-2","step-3","step-4","step-5"].forEach(id => {
+      const el = document.getElementById(id);
+      el.classList.remove("active","done");
+      el.querySelector(".step-dot").textContent = id.split("-")[1];
+    });
+
+    const resp = await fetch("/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, formats: getFormats() }),
+    });
+    const { job_id, error } = await resp.json();
+    if (error) { showError(error); return; }
+
+    // Poll status
+    pollInterval = setInterval(async () => {
+      const s = await fetch(`/status/${job_id}`).then(r => r.json());
+
+      document.getElementById("progress-fill").style.width = s.progress + "%";
+      document.getElementById("progress-pct").textContent  = s.progress + "%";
+      document.getElementById("progress-msg").textContent  = s.message;
+      setStep(s.progress);
+
+      if (s.status === "done") {
+        clearInterval(pollInterval);
+        showResults(s.result);
+      } else if (s.status === "error") {
+        clearInterval(pollInterval);
+        showError(s.error);
+      }
+    }, 800);
+  }
+
+  function showError(msg) {
+    document.getElementById("progress-section").style.display = "none";
+    document.getElementById("go-btn").disabled = false;
+    document.getElementById("error-section").style.display = "block";
+    document.getElementById("error-msg").textContent = msg;
+  }
+
+  function showResults(r) {
+    document.getElementById("progress-section").style.display = "none";
+    document.getElementById("go-btn").disabled = false;
+    document.getElementById("results-section").style.display  = "block";
+
+    // Stats
+    document.getElementById("stat-words").textContent  = r.word_count.toLocaleString();
+    document.getElementById("stat-chunks").textContent = r.num_chunks;
+    document.getElementById("stat-kw").textContent     = r.keywords.length;
+    document.getElementById("stat-source").textContent = r.source === "youtube_api" ? "API" : "Whisper";
+
+    // Keywords
+    const kwList = document.getElementById("kw-list");
+    kwList.innerHTML = r.keywords.map(k => `<span class="kw-tag">${k}</span>`).join("");
+
+    // Notes preview
+    document.getElementById("notes-box").textContent = r.notes_md;
+
+    // Downloads
+    const row = document.getElementById("download-row");
+    row.innerHTML = "";
+    const icons = { md: "📄", pdf: "🔴", docx: "📘" };
+    const labels = { md: "Markdown", pdf: "PDF", docx: "Word DOCX" };
+    for (const [fmt, path] of Object.entries(r.paths)) {
+      const filename = path.split("\\").pop().split("/").pop();
+      row.innerHTML += `
+        <a class="dl-btn ${fmt}" href="/download/${filename}" download>
+          <span class="icon">${icons[fmt]}</span>
+          Download ${labels[fmt]}
+        </a>`;
+    }
+
+    // Scroll to results
+    document.getElementById("results-section").scrollIntoView({ behavior: "smooth" });
+  }
+
+  // Allow Enter key
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("url-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") startJob();
+    });
+  });
+</script>
+
+</body>
+</html>

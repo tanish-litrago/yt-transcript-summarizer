@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# YouTube Transcript Summarizer & Note Maker — Requirements
+# Install with:  pip install -r requirements.txt
+#
+# GPU / CUDA note:
+#   PyTorch is listed below as the CPU/CUDA-unified package.
+#   After installing, if CUDA is not detected automatically run:
+#     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#   (replace cu118 with your CUDA version, e.g. cu121 for CUDA 12.1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Core ML / NLP
+torch>=2.1.0
+transformers>=4.38.0          # T5 / BART summarization models
+sentencepiece>=0.1.99         # Required tokenizer backend for T5
+accelerate>=0.27.0            # Helps HuggingFace load models faster
+
+# Speech-to-text fallback (Whisper — GPU accelerated)
+openai-whisper>=20231117
+yt-dlp>=2024.3.10             # Audio download from YouTube
+
+# Transcript API
+youtube-transcript-api>=0.6.2
+
+# Keyword / NER extraction
+spacy>=3.7.0
+# After install, download the English model:
+#   python -m spacy download en_core_web_sm
+
+# Note export
+fpdf2>=2.7.9                  # PDF export
+python-docx>=1.1.0            # DOCX export
+
+# Utilities
+tqdm>=4.66.0                  # Progress bars
+colorama>=0.4.6               # Coloured terminal output
+
+# Web UI
+flask>=3.0.0
