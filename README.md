@@ -201,5 +201,5 @@ TOP_KEYWORDS        = 10
 
 ## Author
 
-**Tanish** &nbsp;·&nbsp; B.Tech CSE &nbsp;·&nbsp; Government Engineering College, Bilaspur  
+**Tanish Kumar** &nbsp;·&nbsp; B.Tech CSE &nbsp;·&nbsp; Government Engineering College, Bilaspur  
 GitHub: [@tanish-litrago](https://github.com/tanish-litrago)
