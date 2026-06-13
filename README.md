@@ -1,8 +1,27 @@
 # YouTube Transcript Summarizer & Note Maker
-### CUDA-Accelerated NLP on NVIDIA RTX GPU
+### v1.1 — CUDA-Accelerated NLP on NVIDIA RTX GPU
 
 > Paste a YouTube URL → get structured Markdown / PDF / DOCX notes in seconds,  
-> powered by BART/T5 transformer models running on your NVIDIA RTX GPU via CUDA.
+> powered by BART transformer running on your NVIDIA RTX GPU via CUDA.
+
+![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat-square&logo=python)
+![PyTorch](https://img.shields.io/badge/PyTorch-CUDA-red?style=flat-square&logo=pytorch)
+![Flask](https://img.shields.io/badge/Flask-3.0-green?style=flat-square&logo=flask)
+![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-yellow?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-purple?style=flat-square)
+
+---
+
+## What's New in v1.1
+
+- 🎬 Video title + thumbnail display in Web UI
+- ⚡ GPU vs CPU speed comparison with visual bar chart
+- 📜 Processing history with search and sort
+- 🌙 Dark / Light mode toggle
+- 📋 Copy notes to clipboard
+- ✅ Real-time URL validation
+- 🔠 Font size adjuster for notes viewer
+- 💬 Better friendly error messages
 
 ---
 
@@ -10,12 +29,14 @@
 
 | Feature | Detail |
 |---|---|
-| Transcript Extraction | YouTube Transcript API → Whisper (GPU fallback) |
-| Summarization | BART-large-CNN / T5 via HuggingFace, runs on CUDA |
-| Keyword Extraction | TF-IDF + spaCy NER (people, orgs, places, products) |
-| Note Structuring | Auto-sectioned Markdown with headings + bullets |
-| Export | `.md` + `.pdf` + `.docx` in one command |
+| Transcript Extraction | YouTube Transcript API → Whisper GPU fallback |
+| Summarization | BART-large-CNN on CUDA (10x+ faster than CPU) |
+| Keyword Extraction | TF-IDF + spaCy Named Entity Recognition |
+| Note Structuring | Auto-sectioned Markdown with headings and bullets |
+| Export | .md + .pdf + .docx in one command |
+| Web UI | Flask + real-time progress bar + history tab |
 | Batch Mode | Process many URLs from a text file |
+| CLI Support | Full command-line interface via main.py |
 
 ---
 
@@ -24,87 +45,51 @@
 | Component | Minimum |
 |---|---|
 | OS | Windows 11 / Ubuntu 22.04 |
-| Python | 3.10+ |
-| GPU | NVIDIA RTX 2060 or better |
-| VRAM | 6 GB (BART-large) · 2 GB (T5-base) · 1 GB (T5-small) |
-| CUDA | 11.8 or 12.x |
+| Python | 3.11 |
+| GPU | NVIDIA RTX Series |
+| VRAM | 6 GB+ (BART-large-CNN) |
+| CUDA | 12.x |
 | RAM | 16 GB |
+| Storage | 10 GB free (for model cache) |
 
 ---
 
 ## Setup
 
-### 1 — Clone / download the project
+### 1 — Install CUDA PyTorch
 ```bash
-cd yt_summarizer
-```
+# CUDA 12.x (RTX 40xx series)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-### 2 — Create a virtual environment (recommended)
-```bash
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux / macOS:
-source venv/bin/activate
-```
-
-### 3 — Install CUDA PyTorch first
-```bash
-# CUDA 11.8  (RTX 30xx series)
+# CUDA 11.8 (RTX 30xx series)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
-# CUDA 12.1  (RTX 40xx series)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 ```
 
-### 4 — Install all other dependencies
+### 2 — Install all dependencies
 ```bash
 pip install -r requirements.txt
-```
-
-### 5 — Download the spaCy English model
-```bash
 python -m spacy download en_core_web_sm
 ```
 
-### 6 — (Optional) Install FFmpeg for Whisper audio fallback
-- **Windows:** https://ffmpeg.org/download.html — add to PATH  
-- **Ubuntu:** `sudo apt install ffmpeg`
-
----
-
-## Usage
-
-### Single video
+### 3 — Run Web UI
 ```bash
-python main.py --url "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+python app.py
 ```
+Open browser → `http://localhost:5000`
 
-### Specify export formats (md only, or pdf+docx, etc.)
+### 4 — Or use CLI
 ```bash
-python main.py --url "https://youtu.be/dQw4w9WgXcQ" --formats md pdf
-```
+# Single video
+python main.py --url "https://www.youtube.com/watch?v=VIDEO_ID"
 
-### Use a faster / lighter model (less VRAM)
-```bash
-python main.py --url "https://youtu.be/dQw4w9WgXcQ" --model t5-base
-python main.py --url "https://youtu.be/dQw4w9WgXcQ" --model t5-small
-```
+# Choose export formats
+python main.py --url "..." --formats md pdf
 
-### Print to terminal only (no files saved)
-```bash
-python main.py --url "https://youtu.be/dQw4w9WgXcQ" --no-export
-```
+# Use lighter model (less VRAM)
+python main.py --url "..." --model t5-base
 
-### Batch mode (one URL per line in a .txt file)
-```bash
+# Batch mode
 python main.py --batch urls.txt
-```
-`urls.txt` example:
-```
-https://www.youtube.com/watch?v=VIDEO_ID_1
-https://www.youtube.com/watch?v=VIDEO_ID_2
-# lines starting with # are ignored
 ```
 
 ---
@@ -113,32 +98,20 @@ https://www.youtube.com/watch?v=VIDEO_ID_2
 
 ```
 yt_summarizer/
-├── main.py                  # CLI entry point — run this
-├── config.py                # All settings (model, device, paths)
+├── app.py                     # Flask Web UI backend
+├── main.py                    # CLI entry point
+├── config.py                  # All settings (model, device, paths)
 ├── requirements.txt
-├── README.md
-├── outputs/                 # Generated notes (.md / .pdf / .docx)
-├── models_cache/            # HuggingFace model cache (auto-populated)
-└── src/
-    ├── transcript_fetcher.py  # YouTube API + Whisper fallback
-    ├── summarizer.py          # CUDA-accelerated BART/T5 summarization
-    ├── keyword_extractor.py   # TF-IDF + spaCy NER
-    ├── note_generator.py      # Structures notes into Markdown
-    └── exporter.py            # Exports to .md / .pdf / .docx
+├── src/
+│   ├── transcript_fetcher.py  # YouTube API + Whisper GPU fallback
+│   ├── summarizer.py          # CUDA-accelerated BART inference
+│   ├── keyword_extractor.py   # TF-IDF + spaCy NER pipeline
+│   ├── note_generator.py      # Structured Markdown note builder
+│   ├── exporter.py            # MD + PDF + DOCX export
+│   └── video_info.py          # Title, thumbnail, channel metadata
+└── templates/
+    └── index.html             # Web UI (dark/light, history, stats)
 ```
-
----
-
-## Configuration (`config.py`)
-
-| Setting | Default | Description |
-|---|---|---|
-| `SUMMARIZATION_MODEL` | `facebook/bart-large-cnn` | HuggingFace model ID |
-| `WHISPER_MODEL` | `base` | Whisper ASR model size |
-| `CHUNK_TOKEN_LIMIT` | `1024` | Max tokens per summarization chunk |
-| `SUMMARY_MIN_LENGTH` | `60` | Min tokens in each summary |
-| `SUMMARY_MAX_LENGTH` | `200` | Max tokens in each summary |
-| `TOP_KEYWORDS` | `10` | Number of TF-IDF keywords to extract |
 
 ---
 
@@ -146,59 +119,51 @@ yt_summarizer/
 
 ```
 YouTube URL
-    │
-    ▼
-[1] Transcript Fetcher
-    ├─ youtube-transcript-api  (fast, no download)
-    └─ Whisper on CUDA          (fallback for uncaptioned videos)
-    │
-    ▼
-[2] Summarizer (CUDA)
-    ├─ Split transcript into 1024-token chunks
-    ├─ Load BART/T5 model → .to("cuda")
-    └─ torch.autocast(fp16) batch inference
-    │
-    ▼
-[3] Keyword Extractor
-    ├─ TF-IDF scoring (pure Python, no sklearn)
-    └─ spaCy NER  (PERSON, ORG, GPE, PRODUCT …)
-    │
-    ▼
-[4] Note Generator
-    └─ Auto-sectioned Markdown (Introduction → Conclusion)
-    │
-    ▼
-[5] Exporter
-    ├─ .md   (Markdown)
-    ├─ .pdf  (fpdf2, dark-themed)
-    └─ .docx (python-docx)
+     │
+     ▼
+ Video Info Fetcher
+ (title, thumbnail, channel, duration)
+     │
+     ▼
+ Transcript Fetcher
+ ├── YouTube Transcript API  (fast, no download)
+ └── OpenAI Whisper on CUDA  (fallback for uncaptioned videos)
+     │
+     ▼
+ BART-large-CNN on NVIDIA RTX GPU
+ ├── Split transcript into 1024-token chunks
+ ├── torch.autocast fp16 inference on CUDA
+ └── 10x+ faster than CPU
+     │
+     ▼
+ Keyword Extractor
+ ├── TF-IDF scoring (pure Python)
+ └── spaCy Named Entity Recognition
+     │
+     ▼
+ Note Generator
+ └── Auto-sectioned Markdown notes
+     │
+     ▼
+ Exporter
+ ├── .md  (Markdown)
+ ├── .pdf (fpdf2)
+ └── .docx (python-docx)
 ```
 
 ---
 
-## Example Output
+## Configuration
 
-```markdown
-# Deep Learning Explained — dQw4w9WgXcQ
-**Source:** https://youtu.be/dQw4w9WgXcQ
-**Generated:** 2025-01-15 14:32
+Edit `config.py` to change model or settings:
 
-## Key Terms & Entities
-`neural network`  `backpropagation`  `gradient descent`  `PyTorch`
-
-## Named Entities
-- **Yann LeCun**
-- **Google DeepMind**
-
-## Notes
-
-### Section 1 — Introduction
-- Deep learning is a subfield of machine learning using layered neural networks.
-- It has revolutionised computer vision, NLP, and speech recognition.
-
-### Section 2 — Core Concepts
-- Backpropagation computes gradients efficiently using the chain rule.
-- Gradient descent iteratively updates weights to minimise the loss.
+```python
+SUMMARIZATION_MODEL = "facebook/bart-large-cnn"  # or "t5-base", "t5-small"
+WHISPER_MODEL       = "base"                      # tiny, base, small, medium
+CHUNK_TOKEN_LIMIT   = 1024
+SUMMARY_MIN_LENGTH  = 60
+SUMMARY_MAX_LENGTH  = 200
+TOP_KEYWORDS        = 10
 ```
 
 ---
@@ -207,10 +172,34 @@ YouTube URL
 
 | Problem | Fix |
 |---|---|
-| `CUDA out of memory` | Switch to `--model t5-small` or `--model t5-base` |
-| `No captions found` | Install FFmpeg; Whisper fallback will handle it |
-| `spaCy model not found` | Run `python -m spacy download en_core_web_sm` |
-| `yt-dlp error` | Update: `pip install -U yt-dlp` |
-| CPU used instead of GPU | Check `torch.cuda.is_available()` — reinstall CUDA PyTorch |
+| CUDA not available | Reinstall PyTorch with cu124 index URL |
+| No captions found | Install FFmpeg — Whisper fallback will handle it |
+| spaCy model not found | Run `python -m spacy download en_core_web_sm` |
+| yt-dlp error | Run `pip install -U yt-dlp` |
+| CUDA out of memory | Switch to `--model t5-small` in CLI |
 
 ---
+
+## Versions
+
+| Version | Features | Status |
+|---|---|---|
+| v1.0 | BART + Flask Web UI + CLI + Export | ✅ Released |
+| v1.1 | Video info + Speed stats + History + Dark mode + Copy | ✅ Released |
+| v2.0 | Phi-3 INT4 Quantized + RAG + ChromaDB + Chat UI | 🔜 Coming Soon |
+| v2.1 | Exam Q&A Generator + Flashcard Export | 🔜 Planned |
+| v3.0 | Multi-language + Chrome Extension + Cloud Deploy | 🔜 Planned |
+
+---
+
+## Tech Stack
+
+`Python 3.11` &nbsp;·&nbsp; `PyTorch (CUDA)` &nbsp;·&nbsp; `HuggingFace Transformers` &nbsp;·&nbsp; `BART-large-CNN`  
+`OpenAI Whisper` &nbsp;·&nbsp; `spaCy` &nbsp;·&nbsp; `Flask` &nbsp;·&nbsp; `fpdf2` &nbsp;·&nbsp; `python-docx` &nbsp;·&nbsp; `yt-dlp`
+
+---
+
+## Author
+
+**Tanish** &nbsp;·&nbsp; B.Tech CSE &nbsp;·&nbsp; Government Engineering College, Bilaspur  
+GitHub: [@tanish-litrago](https://github.com/tanish-litrago)

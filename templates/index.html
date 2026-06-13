@@ -3,448 +3,371 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>YouTube Transcript Summarizer</title>
+  <title>YouTube Transcript Summarizer v1.1</title>
   <style>
-    /* ── Reset & Base ─────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:        #0f172a;
-      --bg2:       #1e293b;
-      --bg3:       #273548;
-      --accent:    #6366f1;
-      --accent2:   #818cf8;
-      --green:     #22c55e;
-      --red:       #ef4444;
-      --yellow:    #f59e0b;
-      --text:      #e2e8f0;
-      --text2:     #94a3b8;
-      --border:    #334155;
-      --radius:    12px;
+      --bg:      #0b0f19;
+      --bg2:     #131b2e;
+      --bg3:     #1e293b;
+      --accent:  #6366f1;
+      --accent2: #818cf8;
+      --green:   #10b981;
+      --red:     #ef4444;
+      --yellow:  #f59e0b;
+      --text:    #f1f5f9;
+      --text2:   #94a3b8;
+      --border:  #1e293b;
+      --radius:  14px;
+      --shadow:  0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+    }
+
+    .light {
+      --bg:      #f8fafc;
+      --bg2:     #ffffff;
+      --bg3:     #f1f5f9;
+      --text:    #0f172a;
+      --text2:   #64748b;
+      --border:  #e2e8f0;
+      --accent:  #4f46e5;
+      --accent2: #6366f1;
+      --shadow:  0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: "Segoe UI", system-ui, sans-serif;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
       min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+      line-height: 1.5;
     }
 
-    /* ── Header ───────────────────────────────────────────────────────────── */
+    /* ── Header ────────────────────────────────────────────────────────────── */
     header {
-      background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 60%);
+      background: linear-gradient(135deg, #0f1123 0%, #0b0f19 100%);
       border-bottom: 1px solid var(--border);
-      padding: 20px 32px;
+      padding: 18px 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
     }
+    .light header { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); }
 
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
+    .logo { display: flex; align-items: center; gap: 14px; }
     .logo-icon {
       width: 42px; height: 42px;
-      background: var(--accent);
-      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     }
+    .logo h1 { font-size: 1.15rem; font-weight: 700; color: white; letter-spacing: -0.02em; }
+    .logo p  { font-size: 0.78rem; color: rgba(255,255,255,0.75); margin-top: 1px; }
 
-    .logo h1 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.2;
-    }
-
-    .logo p { font-size: 0.78rem; color: var(--text2); }
-
+    .header-right { display: flex; align-items: center; gap: 12px; }
     .gpu-badge {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 9px;
       padding: 8px 14px;
       font-size: 0.78rem;
-      color: var(--green);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
+      font-weight: 600;
+      color: #34d399;
+      display: flex; align-items: center; gap: 8px;
     }
+    .light .gpu-badge { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.3); color: white; }
 
-    .gpu-badge .dot {
-      width: 8px; height: 8px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
+    .dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite; }
+    .light .dot { background: white; }
+    @keyframes pulse { 0%,100% { opacity:1; transform: scale(1); } 50% { opacity:0.4; transform: scale(0.9); } }
 
-    @keyframes pulse {
-      0%,100% { opacity: 1; }
-      50%      { opacity: 0.3; }
-    }
-
-    /* ── Main Layout ──────────────────────────────────────────────────────── */
-    main {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 40px 24px;
-    }
-
-    /* ── Input Card ───────────────────────────────────────────────────────── */
-    .card {
-      background: var(--bg2);
+    .theme-btn {
+      background: rgba(255,255,255,0.08);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px;
-      margin-bottom: 24px;
+      border-radius: 9px;
+      padding: 8px 14px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+      transition: all 0.2s ease;
     }
+    .light .theme-btn { background: rgba(255,255,255,0.2); border-color: transparent; color: white; }
+    .theme-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-1px); }
 
-    .card h2 {
-      font-size: 1rem;
+    /* ── Tabs ───────────────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 24px 32px 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+    .tab {
+      padding: 12px 22px;
+      border-radius: 10px 10px 0 0;
+      cursor: pointer;
+      font-size: 0.9rem;
       font-weight: 600;
       color: var(--text2);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 20px;
+      border: 1px solid transparent;
+      border-bottom: none;
+      transition: all 0.2s ease;
+      margin-bottom: -1px;
     }
+    .tab:hover { color: var(--text); }
+    .tab.active { background: var(--bg); color: var(--accent2); border-color: var(--border); position: relative; }
+    .light .tab.active { color: var(--accent); }
 
-    .url-row {
-      display: flex;
-      gap: 12px;
-    }
+    .tab-content { display: none; animation: fadeIn 0.3s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
+    /* ── Main Layout ────────────────────────────────────────────────────────── */
+    main { max-width: 1050px; margin: 0 auto; padding: 40px 24px; }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 24px; box-shadow: var(--shadow); position: relative; }
+    .card h2 { font-size: 0.8rem; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+
+    /* ── Inputs & Real-time Validation ───────────────────────────────────────── */
+    .url-row { display: flex; gap: 12px; position: relative; }
+    .input-wrapper { flex: 1; position: relative; }
     .url-input {
-      flex: 1;
+      width: 100%;
       background: var(--bg);
       border: 2px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 14px 18px;
       color: var(--text);
       font-size: 0.95rem;
       outline: none;
-      transition: border-color 0.2s;
+      transition: all 0.2s ease;
     }
-
-    .url-input:focus { border-color: var(--accent); }
-    .url-input::placeholder { color: var(--text2); }
+    .url-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
+    .url-input.invalid { border-color: var(--red); background: rgba(239, 68, 68, 0.02); }
+    .url-input.valid { border-color: var(--green); }
+    
+    .validation-hint { font-size: 0.78rem; color: var(--red); margin-top: 6px; display: none; align-items: center; gap: 4px; }
 
     .btn {
-      background: var(--accent);
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
       color: white;
       border: none;
-      border-radius: 10px;
-      padding: 14px 28px;
+      border-radius: 12px;
+      padding: 14px 32px;
       font-size: 0.95rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+      transition: all 0.2s ease;
       white-space: nowrap;
     }
+    .btn:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { background: var(--bg3); color: var(--text2); box-shadow: none; cursor: not-allowed; transform: none; opacity: 0.6; }
 
-    .btn:hover   { background: var(--accent2); }
-    .btn:active  { transform: scale(0.97); }
-    .btn:disabled {
-      background: var(--bg3);
-      color: var(--text2);
-      cursor: not-allowed;
-    }
+    .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent2); border-radius: 10px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+    .light .btn-outline { color: var(--accent); }
+    .btn-outline:hover { background: var(--accent); color: white; transform: translateY(-1px); }
 
-    /* ── Format checkboxes ────────────────────────────────────────────────── */
-    .formats {
-      display: flex;
-      gap: 16px;
-      margin-top: 18px;
-      flex-wrap: wrap;
-    }
+    .formats { display: flex; gap: 20px; margin-top: 18px; flex-wrap: wrap; align-items: center; }
+    .fmt-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; color: var(--text2); user-select: none; }
+    .fmt-label input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 
-    .fmt-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      font-size: 0.88rem;
-      color: var(--text2);
-      user-select: none;
-    }
-
-    .fmt-label input[type=checkbox] {
-      width: 16px; height: 16px;
-      accent-color: var(--accent);
-      cursor: pointer;
-    }
-
-    /* ── Progress ─────────────────────────────────────────────────────────── */
+    /* ── Progress Pipeline & Shimmer Loader ─────────────────────────────────── */
     #progress-section { display: none; }
+    .progress-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+    .progress-msg { font-size: 0.92rem; font-weight: 500; color: var(--text2); animation: shimmer 1.5s infinite alternate; }
+    .progress-pct { font-size: 0.92rem; font-weight: 700; color: var(--accent2); }
+    .light .progress-pct { color: var(--accent); }
 
-    .progress-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
+    .progress-bar-bg { background: var(--bg); border-radius: 99px; height: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 0%; }
 
-    .progress-msg {
-      font-size: 0.9rem;
-      color: var(--text2);
-    }
+    @keyframes shimmer { from { opacity: 0.6; } to { opacity: 1; } }
 
-    .progress-pct {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--accent2);
-    }
+    .steps { display: flex; justify-content: space-between; margin-top: 24px; position: relative; }
+    .steps::before { content: ""; position: absolute; top: 14px; left: 20px; right: 20px; height: 2px; background: var(--border); z-index: 0; }
+    .step { display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 1; flex: 1; }
+    .step-dot { width: 30px; height: 30px; border-radius: 50%; background: var(--bg); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text2); transition: all 0.3s ease; }
+    .step.active .step-dot { border-color: var(--accent); background: var(--accent); color: white; box-shadow: 0 0 12px rgba(99, 102, 241, 0.4); }
+    .step.done .step-dot { border-color: var(--green); background: var(--green); color: white; }
+    .step-label { font-size: 0.72rem; font-weight: 500; color: var(--text2); text-align: center; line-height: 1.3; }
+    .step.active .step-label { color: var(--accent2); font-weight: 600; }
+    .light .step.active .step-label { color: var(--accent); }
+    .step.done .step-label { color: var(--green); font-weight: 600; }
 
-    .progress-bar-bg {
-      background: var(--bg);
-      border-radius: 99px;
-      height: 10px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
+    /* ── Metrics & Advanced Timeline Performance Visualization ───────────────── */
+    .video-info-card { display: flex; gap: 20px; align-items: flex-start; }
+    .video-thumb { width: 200px; min-width: 200px; height: 112px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .video-meta h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; line-height: 1.4; letter-spacing: -0.02em; }
+    .video-meta p  { font-size: 0.88rem; color: var(--text2); margin-bottom: 10px; font-weight: 500; }
 
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      border-radius: 99px;
-      transition: width 0.4s ease;
-      width: 0%;
-    }
+    .meta-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+    .meta-tag { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px; font-size: 0.78rem; font-weight: 500; color: var(--text2); }
 
-    /* ── Steps indicator ──────────────────────────────────────────────────── */
-    .steps {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
-      position: relative;
-    }
+    .speed-card { background: linear-gradient(135deg, #111428, #0b1430); border: 1px solid #232a5c; border-radius: var(--radius); padding: 26px 28px; margin-bottom: 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 20px; }
+    .light .speed-card { background: linear-gradient(135deg, #f0f4ff, #e0e7ff); border-color: #c7d2fe; }
+    .speed-metrics-wrapper { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+    .speed-item { flex: 1; min-width: 100px; }
+    .speed-val { font-size: 1.9rem; font-weight: 800; color: var(--accent2); letter-spacing: -0.02em; }
+    .light .speed-val { color: var(--accent); }
+    .speed-lbl { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+    
+    .speed-divider { width: 1px; height: 45px; background: var(--border); opacity: 0.6; }
+    .light .speed-divider { background: #c7d2fe; }
 
-    .steps::before {
-      content: "";
-      position: absolute;
-      top: 14px; left: 14px; right: 14px;
-      height: 2px;
-      background: var(--border);
-      z-index: 0;
-    }
+    .speedup-badge { background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 10px 20px; text-align: center; }
+    .speedup-val { font-size: 1.6rem; font-weight: 800; color: #34d399; line-height: 1.2; }
+    .speedup-lbl { font-size: 0.72rem; font-weight: 600; color: #10b981; text-transform: uppercase; letter-spacing: 0.05em; }
 
-    .step {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      z-index: 1;
-      flex: 1;
-    }
+    /* Interactive Execution Speed Comparison Chart */
+    .timeline-chart { width: 100%; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 14px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+    .light .timeline-chart { background: rgba(0,0,0,0.03); }
+    .timeline-row { display: flex; align-items: center; gap: 12px; font-size: 0.78rem; }
+    .timeline-label { width: 90px; font-weight: 600; color: var(--text2); }
+    .timeline-bar-container { flex: 1; background: var(--bg); height: 16px; border-radius: 4px; overflow: hidden; position: relative; }
+    .timeline-bar { height: 100%; border-radius: 4px; width: 0%; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+    .timeline-bar.gpu { background: linear-gradient(90deg, #10b981, #34d399); }
+    .timeline-bar.cpu { background: linear-gradient(90deg, #f59e0b, #ef4444); }
 
-    .step-dot {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: var(--bg);
-      border: 2px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 12px;
-      transition: all 0.3s;
-    }
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .stat-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; box-shadow: var(--shadow); }
+    .stat-box .val { font-size: 1.6rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+    .stat-box .lbl { font-size: 0.75rem; font-weight: 600; color: var(--text2); margin-top: 4px; }
 
-    .step.active  .step-dot { border-color: var(--accent); background: var(--accent); color: white; }
-    .step.done    .step-dot { border-color: var(--green);  background: var(--green);  color: white; }
+    /* ── Advanced Reading Tools & Keywords ────────────────────────────────── */
+    .kw-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .kw-tag { background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); color: var(--accent2); border-radius: 8px; padding: 6px 14px; font-size: 0.82rem; font-weight: 500; transition: all 0.2s ease; }
+    .light .kw-tag { color: var(--accent); background: rgba(99, 102, 241, 0.05); }
+    .kw-tag:hover { background: var(--accent); color: white; transform: translateY(-1px); }
 
-    .step-label {
-      font-size: 0.72rem;
-      color: var(--text2);
-      text-align: center;
-    }
+    .notes-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .reading-controls { display: flex; align-items: center; gap: 6px; background: var(--bg3); padding: 4px; border-radius: 8px; border: 1px solid var(--border); }
+    .control-btn { background: transparent; border: none; width: 28px; height: 28px; border-radius: 6px; color: var(--text); font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+    .control-btn:hover { background: var(--bg2); }
 
-    .step.active .step-label { color: var(--accent2); }
-    .step.done   .step-label { color: var(--green); }
+    .notes-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 24px; max-height: 500px; overflow-y: auto; font-size: 0.95rem; line-height: 1.8; white-space: pre-wrap; color: var(--text); font-family: "SFMono-Regular", Consolas, Menlo, monospace; transition: font-size 0.2s ease; }
+    .notes-box::-webkit-scrollbar { width: 6px; }
+    .notes-box::-webkit-scrollbar-track { background: transparent; }
+    .notes-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    .notes-box::-webkit-scrollbar-thumb:hover { background: var(--text2); }
 
-    /* ── Results ──────────────────────────────────────────────────────────── */
+    .download-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .dl-btn { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; color: var(--text); text-decoration: none; font-size: 0.88rem; font-weight: 600; transition: all 0.2s ease; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+    .dl-btn:hover { border-color: var(--accent); background: rgba(99, 102, 241, 0.05); color: var(--accent2); transform: translateY(-1px); }
+    .light .dl-btn:hover { color: var(--accent); }
+
+    /* ── Advanced Control Deck for History ────────────────────────────────── */
+    .history-control-deck { display: flex; gap: 12px; margin-bottom: 20px; width: 100%; flex-wrap: wrap; }
+    .deck-search { flex: 1; min-width: 200px; background: var(--bg); border: 1px solid var(--border); padding: 10px 14px; border-radius: 10px; color: var(--text); font-size: 0.88rem; outline: none; }
+    .deck-search:focus { border-color: var(--accent); }
+    .deck-select { background: var(--bg); border: 1px solid var(--border); padding: 10px 14px; border-radius: 10px; color: var(--text); font-size: 0.88rem; outline: none; cursor: pointer; }
+
+    .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+    .history-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); transition: all 0.2s ease; display: flex; flex-direction: column; }
+    .history-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .history-thumb { width: 100%; height: 160px; object-fit: cover; border-bottom: 1px solid var(--border); }
+    
+    .history-body { padding: 18px; flex: 1; display: flex; flex-direction: column; }
+    .history-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; line-height: 1.4; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .history-meta { font-size: 0.78rem; color: var(--text2); margin-bottom: 12px; font-weight: 500; }
+    
+    .history-kw { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .history-kw span { background: var(--bg3); border-radius: 6px; padding: 3px 8px; font-size: 0.72rem; color: var(--text2); font-weight: 500; }
+
+    .history-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--text2); margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); }
+    .history-speed { color: var(--green); font-weight: 600; }
+    .empty-history { text-align: center; padding: 60px 20px; color: var(--text2); }
+    .empty-history .icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.7; }
+
+    #copy-toast { position: fixed; bottom: 32px; right: 32px; background: var(--green); color: white; padding: 12px 24px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; opacity: 0; transform: translateY(12px); box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; z-index: 999; }
+    #copy-toast.show { opacity: 1; transform: translateY(0); }
+
+    #error-section { display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius); padding: 16px 22px; color: #fca5a5; font-size: 0.92rem; margin-bottom: 24px; }
+    .light #error-section { color: #b91c1c; background: rgba(239, 68, 68, 0.05); }
+
     #results-section { display: none; }
 
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 14px;
-      margin-bottom: 24px;
-    }
-
-    .stat-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px;
-      text-align: center;
-    }
-
-    .stat-box .val {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: var(--accent2);
-    }
-
-    .stat-box .lbl {
-      font-size: 0.75rem;
-      color: var(--text2);
-      margin-top: 4px;
-    }
-
-    /* ── Keywords ─────────────────────────────────────────────────────────── */
-    .keyword-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .kw-tag {
-      background: #1e1b4b;
-      border: 1px solid var(--accent);
-      color: var(--accent2);
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-size: 0.82rem;
-    }
-
-    /* ── Notes viewer ─────────────────────────────────────────────────────── */
-    .notes-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px 24px;
-      max-height: 420px;
-      overflow-y: auto;
-      font-size: 0.88rem;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      color: var(--text);
-      margin-top: 12px;
-      font-family: "Consolas", "Courier New", monospace;
-    }
-
-    .notes-box::-webkit-scrollbar       { width: 6px; }
-    .notes-box::-webkit-scrollbar-track { background: var(--bg2); }
-    .notes-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    /* ── Downloads ────────────────────────────────────────────────────────── */
-    .download-row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    .dl-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 20px;
-      color: var(--text);
-      text-decoration: none;
-      font-size: 0.88rem;
-      font-weight: 600;
-      transition: border-color 0.2s, background 0.2s;
-      cursor: pointer;
-    }
-
-    .dl-btn:hover { border-color: var(--accent); background: #1e1b4b; color: var(--accent2); }
-
-    .dl-btn .icon { font-size: 1.1rem; }
-
-    .dl-btn.md   .icon { color: #64748b; }
-    .dl-btn.pdf  .icon { color: #ef4444; }
-    .dl-btn.docx .icon { color: #3b82f6; }
-
-    /* ── Error ────────────────────────────────────────────────────────────── */
-    #error-section {
-      display: none;
-      background: #2d1515;
-      border: 1px solid var(--red);
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      color: #fca5a5;
-      font-size: 0.9rem;
-      margin-bottom: 24px;
-    }
-
-    #error-section strong { color: var(--red); }
-
-    /* ── Section label ────────────────────────────────────────────────────── */
-    .section-title {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text2);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 10px;
-    }
-
-    /* ── Responsive ───────────────────────────────────────────────────────── */
-    @media (max-width: 600px) {
-      header { flex-direction: column; align-items: flex-start; }
+    @media (max-width: 680px) {
+      header { padding: 16px 20px; }
+      .tabs { padding: 20px 20px 0; }
+      main { padding: 24px 16px; }
       .url-row { flex-direction: column; }
       .btn { width: 100%; }
+      .video-info-card { flex-direction: column; align-items: stretch; }
+      .video-thumb { width: 100%; height: 180px; }
+      .speed-metrics-wrapper { flex-direction: column; align-items: flex-start; gap: 16px; }
+      .speed-divider { display: none; }
+      .speedup-badge { width: 100%; }
     }
   </style>
 </head>
 <body>
 
-<!-- ── Header ──────────────────────────────────────────────────────────────── -->
 <header>
   <div class="logo">
-    <div class="logo-icon">▶</div>
+    <div class="logo-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </div>
     <div>
-      <h1>YouTube Transcript Summarizer</h1>
+      <h1>YouTube Transcript Summarizer <span style="font-size:0.75rem;opacity:0.6;font-weight:500;margin-left:4px">v1.1</span></h1>
       <p>CUDA-Accelerated NLP &nbsp;·&nbsp; HuggingFace Transformers</p>
     </div>
   </div>
-  <div class="gpu-badge">
-    <div class="dot"></div>
-    {{ device }} &nbsp;·&nbsp; {{ gpu_name }}{% if vram %} ({{ vram }}){% endif %}
+  <div class="header-right">
+    <div class="gpu-badge">
+      <div class="dot"></div>
+      {{ device }} &nbsp;·&nbsp; {{ gpu_name }}{% if vram %} ({{ vram }}){% endif %}
+    </div>
+    <button class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
   </div>
 </header>
 
-<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('summarizer', this)">Summarizer</div>
+  <div class="tab" onclick="switchTab('history', this)">History ({{ history|length }})</div>
+</div>
+
+<div id="tab-summarizer" class="tab-content active">
 <main>
 
-  <!-- Input Card -->
   <div class="card">
-    <h2>Summarize a YouTube Video</h2>
+    <h2>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/></svg>
+      Summarize a YouTube Video
+    </h2>
     <div class="url-row">
-      <input
-        id="url-input"
-        class="url-input"
-        type="text"
-        placeholder="https://www.youtube.com/watch?v=..."
-        autocomplete="off"
-        spellcheck="false"
-      />
+      <div class="input-wrapper">
+        <input id="url-input" class="url-input" type="text"
+               placeholder="https://www.youtube.com/watch?v=..."
+               autocomplete="off" spellcheck="false" oninput="validateUrl(this)"/>
+        <div id="url-validation-hint" class="validation-hint">⚠ String does not look like a standard valid YouTube link.</div>
+      </div>
       <button class="btn" id="go-btn" onclick="startJob()">Summarize</button>
     </div>
     <div class="formats">
-      <span style="font-size:0.85rem;color:var(--text2);margin-right:4px;">Export as:</span>
+      <span style="font-size:0.85rem;color:var(--text2);font-weight:600">Export formats:</span>
       <label class="fmt-label"><input type="checkbox" id="fmt-md"   checked> Markdown</label>
       <label class="fmt-label"><input type="checkbox" id="fmt-pdf"  checked> PDF</label>
-      <label class="fmt-label"><input type="checkbox" id="fmt-docx" checked> Word (DOCX)</label>
+      <label class="fmt-label"><input type="checkbox" id="fmt-docx" checked> Word</label>
     </div>
   </div>
 
-  <!-- Error -->
   <div id="error-section">
-    <strong>Error: </strong><span id="error-msg"></span>
+    <strong>⚠ Error: </strong><span id="error-msg"></span>
   </div>
 
-  <!-- Progress Card -->
   <div class="card" id="progress-section">
-    <h2>Processing</h2>
+    <h2>Processing Pipeline</h2>
     <div class="progress-header">
       <span class="progress-msg" id="progress-msg">Starting...</span>
       <span class="progress-pct" id="progress-pct">0%</span>
@@ -452,105 +375,260 @@
     <div class="progress-bar-bg">
       <div class="progress-bar-fill" id="progress-fill"></div>
     </div>
-
-    <!-- Steps -->
-    <div class="steps" style="margin-top:20px;">
-      <div class="step" id="step-1">
-        <div class="step-dot">1</div>
-        <div class="step-label">Fetch<br>Transcript</div>
-      </div>
-      <div class="step" id="step-2">
-        <div class="step-dot">2</div>
-        <div class="step-label">CUDA<br>Summarize</div>
-      </div>
-      <div class="step" id="step-3">
-        <div class="step-dot">3</div>
-        <div class="step-label">Extract<br>Keywords</div>
-      </div>
-      <div class="step" id="step-4">
-        <div class="step-dot">4</div>
-        <div class="step-label">Generate<br>Notes</div>
-      </div>
-      <div class="step" id="step-5">
-        <div class="step-dot">5</div>
-        <div class="step-label">Export<br>Files</div>
-      </div>
+    <div class="steps">
+      <div class="step" id="step-1"><div class="step-dot">1</div><div class="step-label">Fetch<br>Info</div></div>
+      <div class="step" id="step-2"><div class="step-dot">2</div><div class="step-label">Get<br>Transcript</div></div>
+      <div class="step" id="step-3"><div class="step-dot">3</div><div class="step-label">CUDA<br>Summarize</div></div>
+      <div class="step" id="step-4"><div class="step-dot">4</div><div class="step-label">Extract<br>Keywords</div></div>
+      <div class="step" id="step-5"><div class="step-dot">5</div><div class="step-label">Export<br>Files</div></div>
     </div>
   </div>
 
-  <!-- Results Card -->
   <div id="results-section">
 
-    <!-- Stats -->
     <div class="card">
-      <h2>Results</h2>
-      <div class="stats-row">
-        <div class="stat-box">
-          <div class="val" id="stat-words">-</div>
-          <div class="lbl">Words Fetched</div>
-        </div>
-        <div class="stat-box">
-          <div class="val" id="stat-chunks">-</div>
-          <div class="lbl">Sections</div>
-        </div>
-        <div class="stat-box">
-          <div class="val" id="stat-kw">-</div>
-          <div class="lbl">Keywords</div>
-        </div>
-        <div class="stat-box">
-          <div class="val" id="stat-source">-</div>
-          <div class="lbl">Source</div>
+      <h2>Metadata Insights</h2>
+      <div class="video-info-card">
+        <img id="res-thumb" class="video-thumb" src="" alt="thumbnail"/>
+        <div class="video-meta">
+          <h3 id="res-title">—</h3>
+          <p id="res-channel">—</p>
+          <div class="meta-tags">
+            <span class="meta-tag" id="res-duration">—</span>
+            <span class="meta-tag" id="res-views">—</span>
+            <span class="meta-tag" id="res-lang">—</span>
+            <span class="meta-tag" id="res-source">—</span>
+          </div>
         </div>
       </div>
-
-      <!-- Keywords -->
-      <div class="section-title">Keywords & Entities</div>
-      <div class="keyword-list" id="kw-list"></div>
     </div>
 
-    <!-- Notes preview -->
+    <div class="speed-card">
+      <div class="speed-metrics-wrapper">
+        <div class="speed-item">
+          <div class="speed-val" id="spd-gpu">—</div>
+          <div class="speed-lbl">GPU Execution</div>
+        </div>
+        <div class="speed-divider"></div>
+        <div class="speed-item">
+          <div class="speed-val" id="spd-cpu">—</div>
+          <div class="speed-lbl">CPU Baseline</div>
+        </div>
+        <div class="speed-divider"></div>
+        <div class="speed-item">
+          <div class="speed-val" id="spd-total">—</div>
+          <div class="speed-lbl">Total Time</div>
+        </div>
+        <div class="speedup-badge">
+          <div class="speedup-val" id="spd-speedup">—</div>
+          <div class="speedup-lbl">Hardware Speedup</div>
+        </div>
+      </div>
+      
+      <div class="timeline-chart">
+        <div class="timeline-row">
+          <span class="timeline-label">GPU Model:</span>
+          <div class="timeline-bar-container">
+            <div id="bar-gpu" class="timeline-bar gpu"></div>
+          </div>
+        </div>
+        <div class="timeline-row">
+          <span class="timeline-label">CPU Baseline:</span>
+          <div class="timeline-bar-container">
+            <div id="bar-cpu" class="timeline-bar cpu"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box"><div class="val" id="stat-words">-</div><div class="lbl">Words Processed</div></div>
+      <div class="stat-box"><div class="val" id="stat-chunks">-</div><div class="lbl">Map-Reduce Sections</div></div>
+      <div class="stat-box"><div class="val" id="stat-kw">-</div><div class="lbl">Indexed Keywords</div></div>
+      <div class="stat-box"><div class="val" id="stat-entities">-</div><div class="lbl">Named Entities</div></div>
+    </div>
+
     <div class="card">
-      <h2>Generated Notes</h2>
+      <h2>Extracted Entities & Keywords</h2>
+      <div class="kw-list" id="kw-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="notes-header">
+        <h2 style="margin:0">Comprehensive Summary Notes</h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="reading-controls">
+            <button class="control-btn" title="Decrease font size" onclick="adjustFont(-1)">A-</button>
+            <button class="control-btn" title="Increase font size" onclick="adjustFont(1)">A+</button>
+          </div>
+          <button class="btn-outline" onclick="copyNotes()">Copy Text</button>
+        </div>
+      </div>
       <div class="notes-box" id="notes-box"></div>
     </div>
 
-    <!-- Downloads -->
     <div class="card">
-      <h2>Download Files</h2>
+      <h2>Generated Artifact Downloads</h2>
       <div class="download-row" id="download-row"></div>
     </div>
 
   </div>
-
 </main>
+</div>
+
+<div id="tab-history" class="tab-content">
+<main>
+  <div class="card">
+    <h2>Previously Processed Transcripts</h2>
+    
+    {% if history %}
+    <div class="history-control-deck">
+      <input type="text" id="history-search" class="deck-search" placeholder="Filter history logs..." oninput="filterHistory()"/>
+      <select id="history-sort" class="deck-select" onchange="filterHistory()">
+        <option value="default">Sort: Chronological</option>
+        <option value="words-desc">Words: High to Low</option>
+        <option value="speedup-desc">Hardware Speedup Max</option>
+      </select>
+    </div>
+
+    <div class="history-grid" id="history-grid">
+      {% for item in history %}
+      <div class="history-card" 
+           data-title="{{ item.title|lower }}" 
+           data-channel="{{ item.channel|lower }}"
+           data-words="{{ item.word_count|default(0) }}" 
+           data-speedup="{{ item.speedup|default(1) }}">
+        <img class="history-thumb"
+             src="{{ item.thumbnail }}"
+             alt="{{ item.title }}"
+             onerror="this.src='https://img.youtube.com/vi/{{ item.video_id }}/hqdefault.jpg'"/>
+        <div class="history-body">
+          <div class="history-title">{{ item.title }}</div>
+          <div class="history-meta">{{ item.channel }} · {{ item.duration }} · {{ item.timestamp }}</div>
+          <div class="history-kw">
+            {% for kw in item.keywords[:5] %}
+            <span>{{ kw }}</span>
+            {% endfor %}
+          </div>
+          <div class="history-footer">
+            <span>{{ item.word_count|default(0) }} words</span>
+            <span class="history-speed">{{ item.gpu_time }}s on GPU ({{ item.speedup }}x)</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-history">
+      <div class="icon">📁</div>
+      <div>No operational history detected. Run an active summarization task above.</div>
+    </div>
+    {% endif %}
+  </div>
+</main>
+</div>
+
+<div id="copy-toast">✓ Notes copied to clipboard!</div>
 
 <script>
   let pollInterval = null;
+  let isLight = false;
+  let currentFontSize = 15;
 
-  function getFormats() {
-    const fmts = [];
-    if (document.getElementById("fmt-md").checked)   fmts.push("md");
-    if (document.getElementById("fmt-pdf").checked)  fmts.push("pdf");
-    if (document.getElementById("fmt-docx").checked) fmts.push("docx");
-    return fmts.length ? fmts : ["md"];
+  function toggleTheme() {
+    isLight = !isLight;
+    document.body.classList.toggle("light", isLight);
+    document.getElementById("theme-toggle-btn").textContent = isLight ? "🌙 Dark" : "☀️ Light";
   }
 
-  function setStep(progress) {
+  function switchTab(name, el) {
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.getElementById("tab-" + name).classList.add("active");
+    el.classList.add("active");
+  }
+
+  /* Real-time Link Pattern Validation Engine */
+  function validateUrl(input) {
+    const val = input.value.trim();
+    const hint = document.getElementById("url-validation-hint");
+    if(!val) {
+      input.classList.remove("invalid", "valid");
+      hint.style.display = "none";
+      return;
+    }
+    const ytRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+    if (ytRegex.test(val)) {
+      input.classList.remove("invalid");
+      input.classList.add("valid");
+      hint.style.display = "none";
+    } else {
+      input.classList.remove("valid");
+      input.classList.add("invalid");
+      hint.style.display = "flex";
+    }
+  }
+
+  /* Accessibility Size Zoom Adjuster */
+  function adjustFont(direction) {
+    currentFontSize = Math.max(12, Math.min(24, currentFontSize + direction));
+    document.getElementById("notes-box").style.fontSize = currentFontSize + "px";
+  }
+
+  /* Client-Side Advanced Search Engine and Sort Matrix */
+  function filterHistory() {
+    const searchVal = document.getElementById("history-search").value.toLowerCase();
+    const sortVal = document.getElementById("history-sort").value;
+    const grid = document.getElementById("history-grid");
+    if (!grid) return;
+    
+    let cards = Array.from(grid.getElementsByClassName("history-card"));
+
+    // Filter Step
+    cards.forEach(card => {
+      const title = card.getAttribute("data-title");
+      const channel = card.getAttribute("data-channel");
+      if (title.includes(searchVal) || channel.includes(searchVal)) {
+        card.style.display = "flex";
+      } else {
+        card.style.display = "none";
+      }
+    });
+
+    // Dynamic Sort Step
+    if (sortVal === "words-desc") {
+      cards.sort((a, b) => parseInt(b.getAttribute("data-words")) - parseInt(a.getAttribute("data-words")));
+      cards.forEach(card => grid.appendChild(card));
+    } else if (sortVal === "speedup-desc") {
+      cards.sort((a, b) => parseFloat(b.getAttribute("data-speedup")) - parseFloat(a.getAttribute("data-speedup")));
+      cards.forEach(card => grid.appendChild(card));
+    }
+  }
+
+  function getFormats() {
+    const f = [];
+    if (document.getElementById("fmt-md").checked)   f.push("md");
+    if (document.getElementById("fmt-pdf").checked)  f.push("pdf");
+    if (document.getElementById("fmt-docx").checked) f.push("docx");
+    return f.length ? f : ["md"];
+  }
+
+  function setStep(p) {
     const steps = [
-      { id: "step-1", min: 5  },
-      { id: "step-2", min: 30 },
-      { id: "step-3", min: 75 },
-      { id: "step-4", min: 88 },
-      { id: "step-5", min: 92 },
+      { id:"step-1", min:5  },
+      { id:"step-2", min:15 },
+      { id:"step-3", min:32 },
+      { id:"step-4", min:75 },
+      { id:"step-5", min:93 },
     ];
     steps.forEach((s, i) => {
-      const el = document.getElementById(s.id);
+      const el   = document.getElementById(s.id);
       const next = steps[i + 1];
       el.classList.remove("active", "done");
-      if (progress >= (next ? next.min : 100)) {
+      if (p >= (next ? next.min : 100)) {
         el.classList.add("done");
         el.querySelector(".step-dot").textContent = "✓";
-      } else if (progress >= s.min) {
+      } else if (p >= s.min) {
         el.classList.add("active");
       }
     });
@@ -558,23 +636,20 @@
 
   async function startJob() {
     const url = document.getElementById("url-input").value.trim();
-    if (!url) {
-      alert("Please paste a YouTube URL first!");
-      return;
-    }
+    if (!url) { alert("Please paste a YouTube URL!"); return; }
 
-    // Reset UI
     document.getElementById("error-section").style.display    = "none";
     document.getElementById("results-section").style.display  = "none";
     document.getElementById("progress-section").style.display = "block";
     document.getElementById("go-btn").disabled = true;
     document.getElementById("progress-fill").style.width = "0%";
     document.getElementById("progress-pct").textContent  = "0%";
-    document.getElementById("progress-msg").textContent  = "Starting...";
-    ["step-1","step-2","step-3","step-4","step-5"].forEach(id => {
+    document.getElementById("progress-msg").textContent  = "Starting server thread pipeline...";
+    
+    ["step-1","step-2","step-3","step-4","step-5"].forEach((id, i) => {
       const el = document.getElementById(id);
       el.classList.remove("active","done");
-      el.querySelector(".step-dot").textContent = id.split("-")[1];
+      el.querySelector(".step-dot").textContent = i + 1;
     });
 
     const resp = await fetch("/summarize", {
@@ -585,22 +660,14 @@
     const { job_id, error } = await resp.json();
     if (error) { showError(error); return; }
 
-    // Poll status
     pollInterval = setInterval(async () => {
       const s = await fetch(`/status/${job_id}`).then(r => r.json());
-
       document.getElementById("progress-fill").style.width = s.progress + "%";
       document.getElementById("progress-pct").textContent  = s.progress + "%";
       document.getElementById("progress-msg").textContent  = s.message;
       setStep(s.progress);
-
-      if (s.status === "done") {
-        clearInterval(pollInterval);
-        showResults(s.result);
-      } else if (s.status === "error") {
-        clearInterval(pollInterval);
-        showError(s.error);
-      }
+      if (s.status === "done")  { clearInterval(pollInterval); showResults(s.result); }
+      if (s.status === "error") { clearInterval(pollInterval); showError(s.error); }
     }, 800);
   }
 
@@ -616,44 +683,69 @@
     document.getElementById("go-btn").disabled = false;
     document.getElementById("results-section").style.display  = "block";
 
-    // Stats
-    document.getElementById("stat-words").textContent  = r.word_count.toLocaleString();
-    document.getElementById("stat-chunks").textContent = r.num_chunks;
-    document.getElementById("stat-kw").textContent     = r.keywords.length;
-    document.getElementById("stat-source").textContent = r.source === "youtube_api" ? "API" : "Whisper";
+    // Video info configuration
+    document.getElementById("res-thumb").src      = r.thumbnail;
+    document.getElementById("res-title").textContent   = r.title;
+    document.getElementById("res-channel").textContent = r.channel;
+    document.getElementById("res-duration").textContent = r.duration;
+    document.getElementById("res-views").textContent    = r.view_count;
+    document.getElementById("res-lang").textContent     = "Lang: " + r.language;
+    document.getElementById("res-source").textContent   = r.source === "youtube_api" ? "YouTube API" : "Whisper";
 
-    // Keywords
-    const kwList = document.getElementById("kw-list");
-    kwList.innerHTML = r.keywords.map(k => `<span class="kw-tag">${k}</span>`).join("");
+    // Speed Metric Configurations
+    document.getElementById("spd-gpu").textContent     = r.gpu_time + "s";
+    document.getElementById("spd-cpu").textContent     = "~" + r.cpu_estimate + "s";
+    document.getElementById("spd-total").textContent   = r.total_time + "s";
+    document.getElementById("spd-speedup").textContent = r.speedup + "x";
 
-    // Notes preview
+    // Compute Timeline Scale Values Animation
+    const totalTime = Math.max(r.gpu_time, r.cpu_estimate);
+    const gpuPct = (r.gpu_time / totalTime) * 100;
+    const cpuPct = (r.cpu_estimate / totalTime) * 100;
+    document.getElementById("bar-gpu").style.width = Math.max(4, gpuPct) + "%";
+    document.getElementById("bar-cpu").style.width = cpuPct + "%";
+
+    // Stats Grid Integration
+    document.getElementById("stat-words").textContent    = r.word_count.toLocaleString();
+    document.getElementById("stat-chunks").textContent   = r.num_chunks;
+    document.getElementById("stat-kw").textContent       = r.keywords.length;
+    document.getElementById("stat-entities").textContent = r.entities.length;
+
+    // Keywords Setup
+    document.getElementById("kw-list").innerHTML =
+      r.keywords.map(k => `<span class="kw-tag">${k}</span>`).join("");
+
+    // Core Text Injection
     document.getElementById("notes-box").textContent = r.notes_md;
 
-    // Downloads
-    const row = document.getElementById("download-row");
-    row.innerHTML = "";
-    const icons = { md: "📄", pdf: "🔴", docx: "📘" };
-    const labels = { md: "Markdown", pdf: "PDF", docx: "Word DOCX" };
-    for (const [fmt, path] of Object.entries(r.paths)) {
-      const filename = path.split("\\").pop().split("/").pop();
-      row.innerHTML += `
-        <a class="dl-btn ${fmt}" href="/download/${filename}" download>
-          <span class="icon">${icons[fmt]}</span>
-          Download ${labels[fmt]}
-        </a>`;
-    }
+    // Direct Routing Downloads Configuration
+    const icons  = { md:"📄", pdf:"🔴", docx:"📘" };
+    const labels = { md:"Markdown", pdf:"PDF", docx:"Word DOCX" };
+    document.getElementById("download-row").innerHTML =
+      Object.entries(r.paths).map(([fmt, path]) => {
+        const filename = path.split(/[\\/]/).pop();
+        return `<a class="dl-btn" href="/download/${filename}" download>
+                  <span>${icons[fmt]}</span> Download ${labels[fmt]}
+                </a>`;
+      }).join("");
 
-    // Scroll to results
-    document.getElementById("results-section").scrollIntoView({ behavior: "smooth" });
+    document.getElementById("results-section").scrollIntoView({ behavior:"smooth" });
   }
 
-  // Allow Enter key
-  document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("url-input").addEventListener("keydown", e => {
-      if (e.key === "Enter") startJob();
+  function copyNotes() {
+    const text = document.getElementById("notes-box").textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const toast = document.getElementById("copy-toast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
     });
+  }
+
+  // Bind Standard Actions
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("url-input")
+      .addEventListener("keydown", e => { if (e.key === "Enter") startJob(); });
   });
 </script>
-
 </body>
 </html>
