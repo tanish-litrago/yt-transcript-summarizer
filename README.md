@@ -14,14 +14,14 @@
 
 ## What's New in v1.1
 
-- 🎬 Video title + thumbnail display in Web UI
-- ⚡ GPU vs CPU speed comparison with visual bar chart
-- 📜 Processing history with search and sort
-- 🌙 Dark / Light mode toggle
-- 📋 Copy notes to clipboard
-- ✅ Real-time URL validation
-- 🔠 Font size adjuster for notes viewer
-- 💬 Better friendly error messages
+- Video title + thumbnail display in Web UI
+- GPU vs CPU speed comparison with visual bar chart
+- Processing history with search and sort
+- Dark / Light mode toggle
+- Copy notes to clipboard
+- Real-time URL validation
+- Font size adjuster for notes viewer
+- Better friendly error messages
 
 ---
 
@@ -184,11 +184,11 @@ TOP_KEYWORDS        = 10
 
 | Version | Features | Status |
 |---|---|---|
-| v1.0 | BART + Flask Web UI + CLI + Export | ✅ Released |
-| v1.1 | Video info + Speed stats + History + Dark mode + Copy | ✅ Released |
-| v2.0 | Phi-3 INT4 Quantized + RAG + ChromaDB + Chat UI | 🔜 Coming Soon |
-| v2.1 | Exam Q&A Generator + Flashcard Export | 🔜 Planned |
-| v3.0 | Multi-language + Chrome Extension + Cloud Deploy | 🔜 Planned |
+| v1.0 | BART + Flask Web UI + CLI + Export | Released |
+| v1.1 | Video info + Speed stats + History + Dark mode + Copy | Released |
+| v2.0 | Phi-3 INT4 Quantized + RAG + ChromaDB + Chat UI | Coming Soon |
+| v2.1 | Exam Q&A Generator + Flashcard Export | Planned |
+| v3.0 | Multi-language + Chrome Extension + Cloud Deploy | Planned |
 
 ---
 
