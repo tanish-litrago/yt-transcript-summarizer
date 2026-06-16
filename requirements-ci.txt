@@ -1,0 +1,5 @@
+# Lightweight deps for CI only — no heavy ML libraries
+flake8>=7.0.0
+pyflakes>=3.2.0
+pytest>=8.0.0
+flask>=3.0.0

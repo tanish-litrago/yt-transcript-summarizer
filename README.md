@@ -8,6 +8,7 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-CUDA-red?style=flat-square&logo=pytorch)
 ![Flask](https://img.shields.io/badge/Flask-3.0-green?style=flat-square&logo=flask)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-yellow?style=flat-square)
+![CI](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/ci.yml/badge.svg?branch=main)
 ![License](https://img.shields.io/badge/License-MIT-purple?style=flat-square)
 
 ---
