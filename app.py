@@ -143,11 +143,13 @@ def run_pipeline(job_id: str, url: str, formats: list):
             "notes_md"   : notes_md,
             "paths"      : paths,
             "gpu_time"   : gpu_time,
+            "fetch_time" : fetch_time,
             "cpu_estimate": cpu_estimate,
             "speedup"    : speedup,
             "total_time" : total_time,
             "source"     : transcript_data["source"],
             "language"   : transcript_data["language"],
+            "device"     : DEVICE.upper(),
         }
 
     except Exception as e:

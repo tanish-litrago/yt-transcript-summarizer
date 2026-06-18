@@ -31,6 +31,7 @@ def get_video_info(url: str) -> dict:
             "quiet"        : True,
             "no_warnings"  : True,
             "skip_download": True,
+            "extractor_args": {"youtube": {"js_runtimes": ["node"]}},
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

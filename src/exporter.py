@@ -1,5 +1,7 @@
 """
-src/exporter.py — Fully fixed version
+src/exporter.py — v1.1 Complete Rewrite
+Fixes: Generated date cutoff, white pages, page breaks mid-content,
+       dark background on all pages, proper meta line rendering.
 """
 
 import os, sys, re
@@ -14,25 +16,26 @@ def _safe_filename(video_id):
 
 
 def _clean(text):
-    """Replace all special unicode chars with safe ASCII equivalents."""
-    table = {
-        0x2014:"--",  0x2013:"-",   0x2012:"-",   0x2015:"--",
-        0x2018:"'",   0x2019:"'",   0x201A:"'",   0x201B:"'",
-        0x201C:"\"",  0x201D:"\"",  0x201E:"\"",  0x201F:"\"",
-        0x2026:"...", 0x2022:"-",   0x00B7:"-",   0x2010:"-",
-        0x2011:"-",   0x2039:"<",   0x203A:">",   0x2032:"'",
-        0x00A0:" ",   0x00AD:"-",   0x2044:"/",   0x2060:"",
-        0x200B:"",    0x200C:"",    0x200D:"",    0xFEFF:"",
+    replacements = {
+        "\u2014": "--",  "\u2013": "-",   "\u2012": "-",  "\u2015": "--",
+        "\u2010": "-",   "\u2011": "-",   "\u2018": "'",  "\u2019": "'",
+        "\u201A": "'",   "\u201B": "'",   "\u201C": '"',  "\u201D": '"',
+        "\u201E": '"',   "\u201F": '"',   "\u2026": "...","\u2022": "-",
+        "\u00B7": "-",   "\u00A0": " ",   "\u00AD": "-",  "\u2039": "<",
+        "\u203A": ">",   "\u2032": "'",   "\u2044": "/",  "\u2060": "",
+        "\u200B": "",    "\u200C": "",    "\u200D": "",   "\uFEFF": "",
+        "\U0001F511": "", "\U0001F464": "", "\U0001F4DD": "",
+        "\U0001F4C4": "", "\U0001F4D6": "",
     }
-    text = text.translate(table)
-    # Remove any remaining non-latin1 characters
+    for char, rep in replacements.items():
+        text = text.replace(char, rep)
     result = ""
     for ch in text:
         try:
             ch.encode("latin-1")
             result += ch
         except UnicodeEncodeError:
-            result += "?"
+            result += ""
     return result
 
 
@@ -42,11 +45,9 @@ def _strip_md(text):
     return text
 
 
-def _clean_md(text):
+def _c(text):
     return _clean(_strip_md(text))
 
-
-# ── Markdown ──────────────────────────────────────────────────────────────────
 
 def export_markdown(notes_md, video_id):
     path = os.path.join(OUTPUT_DIR, _safe_filename(video_id) + ".md")
@@ -56,165 +57,194 @@ def export_markdown(notes_md, video_id):
     return path
 
 
-# ── PDF ───────────────────────────────────────────────────────────────────────
-
 def export_pdf(notes_md, video_id):
     try:
         from fpdf import FPDF
     except ImportError:
         raise RuntimeError("fpdf2 not installed.")
 
+    BG       = (11,  15,  25)
+    BG2      = (19,  27,  46)
+    ACCENT   = (99,  102, 241)
+    ACCENT_L = (129, 140, 248)
+    BODY     = (226, 232, 240)
+    BODY2    = (148, 163, 184)
+    GREEN    = (16,  185, 129)
+    BORDER   = (30,  41,  59)
+
     class PDF(FPDF):
         def header(self):
-            pass
+            self.set_fill_color(*BG)
+            self.rect(0, 0, 210, 297, "F")
+
         def footer(self):
             self.set_y(-12)
-            self.set_font("Helvetica", "I", 8)
-            self.set_text_color(150, 150, 150)
-            self.cell(0, 10, f"Page {self.page_no()}", align="C")
+            self.set_font("Helvetica", "I", 7)
+            self.set_text_color(*BODY2)
+            self.cell(0, 8, f"Page {self.page_no()} | YouTube Transcript Summarizer", align="C")
 
     pdf = PDF(orientation="P", unit="mm", format="A4")
-    pdf.set_margins(left=18, top=18, right=18)
+    pdf.set_margins(left=18, top=22, right=18)
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
 
-    # Page background — white
-    pdf.set_fill_color(255, 255, 255)
-    pdf.rect(0, 0, 210, 297, "F")
-
-    W = 174  # usable width (210 - 18*2)
-
-    # ── Style helpers ─────────────────────────────────────────────────────────
+    W = 174
 
     def h1(text):
-        pdf.set_font("Helvetica", "B", 20)
-        pdf.set_text_color(47, 84, 204)
-        pdf.multi_cell(W, 11, _clean_md(text), align="L")
-        # Underline
-        y = pdf.get_y()
-        pdf.set_draw_color(47, 84, 204)
-        pdf.set_line_width(0.5)
+        text = _c(text)
+        if not text.strip(): return
+        pdf.set_font("Helvetica", "B", 17)
+        pdf.set_text_color(*ACCENT)
+        pdf.multi_cell(W, 9, text, align="L")
+        y = pdf.get_y() + 1
+        pdf.set_draw_color(*ACCENT)
+        pdf.set_line_width(0.4)
         pdf.line(18, y, 192, y)
         pdf.ln(4)
-        pdf.set_text_color(30, 30, 30)
+        pdf.set_text_color(*BODY)
 
     def h2(text):
-        pdf.ln(4)
-        pdf.set_font("Helvetica", "B", 14)
-        pdf.set_text_color(47, 84, 204)
-        # Coloured rect behind heading
-        x, y = pdf.get_x(), pdf.get_y()
-        pdf.set_fill_color(235, 240, 255)
-        pdf.rect(16, y - 1, W + 2, 9, "F")
-        pdf.multi_cell(W, 8, "  " + _clean_md(text), align="L")
-        pdf.set_text_color(30, 30, 30)
-        pdf.ln(1)
+        text = _c(text)
+        if not text.strip(): return
+        pdf.ln(3)
+        y = pdf.get_y()
+        pdf.set_fill_color(*BG2)
+        pdf.rect(16, y - 1, W + 2, 8, "F")
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(*ACCENT)
+        pdf.set_x(20)
+        pdf.cell(W, 7, text, align="L")
+        pdf.ln(8)
+        pdf.set_text_color(*BODY)
 
     def h3(text):
+        text = _c(text)
+        if not text.strip(): return
         pdf.ln(2)
-        pdf.set_font("Helvetica", "B", 11)
-        pdf.set_text_color(70, 110, 200)
-        pdf.multi_cell(W, 7, _clean_md(text), align="L")
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(*ACCENT_L)
+        pdf.multi_cell(W, 6, text, align="L")
+        pdf.set_text_color(*BODY)
 
     def body(text):
-        cleaned = _clean_md(text)
-        if not cleaned.strip():
-            return
-        pdf.set_font("Helvetica", "", 10)
-        pdf.set_text_color(40, 40, 40)
-        pdf.multi_cell(W, 6, cleaned, align="L")
+        text = _c(text)
+        if not text.strip(): return
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(*BODY)
+        pdf.multi_cell(W, 5.5, text, align="L")
+
+    def meta(key, val):
+        key = _clean(key)
+        val = _clean(val)
+        if not val.strip(): return
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(*ACCENT_L)
+        kw = pdf.get_string_width(key + ":  ")
+        pdf.cell(kw, 6, key + ": ")
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(*BODY2)
+        pdf.multi_cell(W - kw, 6, val, align="L")
 
     def bullet(text):
-        cleaned = _clean_md(text)
-        if not cleaned.strip():
-            return
-        pdf.set_font("Helvetica", "", 10)
-        pdf.set_text_color(40, 40, 40)
-        # bullet symbol + indent
-        pdf.set_x(22)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.set_text_color(47, 84, 204)
-        pdf.cell(5, 6, "-")
-        pdf.set_font("Helvetica", "", 10)
-        pdf.set_text_color(40, 40, 40)
-        pdf.multi_cell(W - 7, 6, cleaned, align="L")
-
-    def keyword_line(text):
-        # Render keywords as styled tags
-        cleaned = _clean_md(text)
-        pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(47, 84, 150)
-        pdf.set_fill_color(225, 232, 255)
-        # Split by two or more spaces (how they're joined in note_generator)
-        tags = [t.strip().strip("`") for t in re.split(r"\s{2,}", cleaned) if t.strip()]
-        x_start = 18
+        text = _c(text)
+        if not text.strip(): return
         y = pdf.get_y()
-        x = x_start
+        pdf.set_fill_color(*GREEN)
+        pdf.ellipse(20.5, y + 1.8, 1.8, 1.8, "F")
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(*BODY)
+        pdf.set_x(24)
+        pdf.multi_cell(W - 6, 5.5, text, align="L")
+
+    def keyword_tags(text):
+        text = _c(text)
+        tags = [t.strip() for t in re.split(r"\s{2,}", text) if t.strip()]
+        if not tags:
+            tags = [t for t in text.split() if t.strip()]
+        if not tags: return
+        x0 = 18
+        y  = pdf.get_y()
+        x  = x0
+        pdf.set_font("Helvetica", "", 8)
         for tag in tags:
-            tag_w = pdf.get_string_width(tag) + 6
-            if x + tag_w > 192:
-                x = x_start
+            tw = pdf.get_string_width(tag) + 8
+            if x + tw > 190:
+                x = x0
                 y += 7
-                pdf.set_y(y)
+            if y > 272:
+                pdf.add_page()
+                y = pdf.get_y()
+                x = x0
             pdf.set_xy(x, y)
-            pdf.set_fill_color(225, 232, 255)
-            pdf.set_draw_color(170, 190, 240)
-            pdf.rect(x, y, tag_w, 6, "FD")
-            pdf.set_xy(x + 3, y)
-            pdf.cell(tag_w - 6, 6, tag)
-            x += tag_w + 3
+            pdf.set_fill_color(30, 27, 75)
+            pdf.set_draw_color(*ACCENT)
+            pdf.set_line_width(0.2)
+            pdf.rect(x, y, tw, 6, "FD")
+            pdf.set_text_color(*ACCENT_L)
+            pdf.set_xy(x + 4, y + 0.5)
+            pdf.cell(tw - 8, 5, tag)
+            x += tw + 4
         pdf.set_y(y + 8)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(*BODY)
 
     def hr():
         pdf.ln(3)
-        pdf.set_draw_color(200, 210, 240)
-        pdf.set_line_width(0.3)
+        pdf.set_draw_color(*BORDER)
+        pdf.set_line_width(0.25)
         y = pdf.get_y()
         pdf.line(18, y, 192, y)
         pdf.ln(4)
 
-    # ── Render lines ──────────────────────────────────────────────────────────
-
     in_keywords = False
+
     for raw in notes_md.splitlines():
         line = raw.rstrip()
         try:
             if line.startswith("# "):
                 in_keywords = False
                 h1(line[2:])
+
             elif line.startswith("## "):
-                heading = line[3:].strip()
-                in_keywords = "Key Terms" in heading or "Named Entities" in heading
+                heading = _c(line[3:])
+                in_keywords = any(x in heading.lower() for x in
+                                  ["key terms", "named entities", "keywords"])
                 h2(heading)
+
             elif line.startswith("### "):
                 in_keywords = False
                 h3(line[4:])
+
             elif line.startswith("- "):
-                content = line[2:]
-                # Detect keyword/tag lines (contains backticks)
-                if in_keywords and "`" not in content:
-                    # Named entity bullet
-                    bullet(_strip_md(content).replace("**", ""))
-                else:
-                    bullet(content)
-            elif line == "---":
-                hr()
-            elif line == "":
-                pdf.ln(2)
-            else:
-                # Keyword tag lines (contain backticks)
-                if "`" in line:
-                    keyword_line(line)
+                content = re.sub(r"\*\*(.+?)\*\*", r"\1", line[2:])
+                bullet(content)
+
+            elif line.startswith("**") and (":**" in line or ": " in line):
+                match = re.match(r"\*\*(.+?)\*\*:?\s*(.*)", line)
+                if match:
+                    meta(match.group(1), match.group(2))
                 else:
                     body(line)
-        except Exception as e:
-            # Never crash on a single line
-            try:
-                body(str(e)[:60])
-            except Exception:
-                pass
+
+            elif line == "---":
+                hr()
+
+            elif line == "":
+                pdf.ln(2)
+
+            else:
+                if "`" in line:
+                    cleaned = re.sub(r"`(.+?)`", r"\1", line)
+                    if in_keywords:
+                        keyword_tags(cleaned)
+                    else:
+                        body(cleaned)
+                elif in_keywords and line.strip():
+                    keyword_tags(line)
+                else:
+                    body(line)
+
+        except Exception:
+            pass
 
     path = os.path.join(OUTPUT_DIR, _safe_filename(video_id) + ".pdf")
     pdf.output(path)
@@ -222,12 +252,10 @@ def export_pdf(notes_md, video_id):
     return path
 
 
-# ── DOCX ──────────────────────────────────────────────────────────────────────
-
 def export_docx(notes_md, video_id):
     try:
         from docx import Document
-        from docx.shared import Pt, RGBColor, Inches, RGBColor
+        from docx.shared import Pt, RGBColor, Inches
         from docx.oxml.ns import qn
         from docx.oxml import OxmlElement
     except ImportError:
@@ -238,16 +266,11 @@ def export_docx(notes_md, video_id):
         sec.top_margin = sec.bottom_margin = Inches(1)
         sec.left_margin = sec.right_margin = Inches(1.2)
 
-    # Change default font
-    style = doc.styles["Normal"]
-    style.font.name = "Calibri"
-    style.font.size = Pt(11)
+    AC  = RGBColor(0x63, 0x66, 0xF1)
+    AC2 = RGBColor(0x81, 0x8C, 0xF8)
+    BK  = RGBColor(0x1E, 0x1E, 0x1E)
 
-    AC  = RGBColor(0x2F, 0x54, 0xCC)
-    AC2 = RGBColor(0x46, 0x6E, 0xC8)
-    BK  = RGBColor(0x20, 0x20, 0x20)
-
-    def add_horizontal_line(paragraph):
+    def add_hr(paragraph):
         p = paragraph._p
         pPr = p.get_or_add_pPr()
         pBdr = OxmlElement("w:pBdr")
@@ -255,7 +278,7 @@ def export_docx(notes_md, video_id):
         bottom.set(qn("w:val"),   "single")
         bottom.set(qn("w:sz"),    "6")
         bottom.set(qn("w:space"), "1")
-        bottom.set(qn("w:color"), "2F54CC")
+        bottom.set(qn("w:color"), "6366F1")
         pBdr.append(bottom)
         pPr.append(pBdr)
 
@@ -264,46 +287,56 @@ def export_docx(notes_md, video_id):
         try:
             if line.startswith("# "):
                 p = doc.add_heading(_strip_md(line[2:]), level=1)
-                for run in p.runs:
-                    run.font.color.rgb = AC
-                    run.font.size = Pt(20)
-                add_horizontal_line(p)
+                for r in p.runs:
+                    r.font.color.rgb = AC
+                    r.font.size = Pt(18)
+                add_hr(p)
 
             elif line.startswith("## "):
                 p = doc.add_heading(_strip_md(line[3:]), level=2)
-                for run in p.runs:
-                    run.font.color.rgb = AC
-                    run.font.size = Pt(14)
+                for r in p.runs:
+                    r.font.color.rgb = AC
+                    r.font.size = Pt(13)
 
             elif line.startswith("### "):
                 p = doc.add_heading(_strip_md(line[4:]), level=3)
-                for run in p.runs:
-                    run.font.color.rgb = AC2
-                    run.font.size = Pt(12)
+                for r in p.runs:
+                    r.font.color.rgb = AC2
+                    r.font.size = Pt(11)
 
             elif line.startswith("- "):
-                content = _strip_md(line[2:]).replace("**", "")
+                content = re.sub(r"\*\*(.+?)\*\*", r"\1", line[2:])
                 p = doc.add_paragraph(style="List Bullet")
                 r = p.add_run(content)
                 r.font.size      = Pt(11)
                 r.font.color.rgb = BK
 
+            elif line.startswith("**") and (":**" in line or ": " in line):
+                match = re.match(r"\*\*(.+?)\*\*:?\s*(.*)", line)
+                if match:
+                    p = doc.add_paragraph()
+                    r1 = p.add_run(match.group(1) + ": ")
+                    r1.bold = True
+                    r1.font.color.rgb = AC2
+                    r1.font.size = Pt(10)
+                    r2 = p.add_run(match.group(2))
+                    r2.font.color.rgb = BK
+                    r2.font.size = Pt(10)
+
             elif line == "---":
                 p = doc.add_paragraph()
-                add_horizontal_line(p)
+                add_hr(p)
 
             elif line == "":
                 doc.add_paragraph("")
 
             else:
-                # Keyword lines — strip backticks
-                cleaned = re.sub(r"`(.+?)`", r"\1", line)
-                cleaned = _strip_md(cleaned)
+                cleaned = re.sub(r"`(.+?)`", r"\1", _strip_md(line))
                 if cleaned.strip():
                     p = doc.add_paragraph()
                     r = p.add_run(cleaned)
-                    r.font.size = Pt(10)
-                    r.font.color.rgb = AC2
+                    r.font.size      = Pt(10)
+                    r.font.color.rgb = BK
 
         except Exception:
             pass
@@ -313,8 +346,6 @@ def export_docx(notes_md, video_id):
     print(f"[Export] DOCX saved:     {path}")
     return path
 
-
-# ── Export all ────────────────────────────────────────────────────────────────
 
 def export_all(notes_md, video_id, formats=None):
     if formats is None:
