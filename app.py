@@ -27,6 +27,7 @@ from src.keyword_extractor   import extract_keywords
 from src.note_generator      import generate_notes
 from src.exporter            import export_all
 from src.video_info          import get_video_info
+from src.analyzer            import run_all as run_analytics
 from config                  import OUTPUT_DIR, DEVICE
 
 import torch
@@ -91,7 +92,17 @@ def run_pipeline(job_id: str, url: str, formats: list):
         # 3. Keywords
         update(75, "Extracting keywords and named entities...")
         keyword_data = extract_keywords(transcript)
-        update(85, f"Found {len(keyword_data['combined'])} keywords")
+        update(82, f"Found {len(keyword_data['combined'])} keywords")
+
+        # 3b. Analytics
+        update(85, "Running data analysis...")
+        analytics_data = run_analytics(
+            transcript   = transcript,
+            summary      = summary_data["full_summary"],
+            chunks       = summary_data["chunks"],
+            entities     = keyword_data["entities"],
+            duration_str = video_info["duration"],
+        )
 
         # 4. Notes
         update(88, "Generating structured notes...")
@@ -150,6 +161,7 @@ def run_pipeline(job_id: str, url: str, formats: list):
             "source"     : transcript_data["source"],
             "language"   : transcript_data["language"],
             "device"     : DEVICE.upper(),
+            "analytics"  : analytics_data,
         }
 
     except Exception as e:

@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>YouTube Transcript Summarizer v1.1</title>
+  <title>YouTube Transcript Summarizer v1.2</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.1/plotly.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -600,7 +601,7 @@
   <div class="logo">
     <div class="logo-icon">▶</div>
     <div>
-      <h1>YouTube Transcript Summarizer <span style="font-size:0.7rem;opacity:0.7">v1.1</span></h1>
+      <h1>YouTube Transcript Summarizer <span style="font-size:0.7rem;opacity:0.7">v1.2</span></h1>
       <p>CUDA-Accelerated NLP &nbsp;·&nbsp; HuggingFace Transformers</p>
     </div>
   </div>
@@ -615,6 +616,7 @@
 
 <div class="tabs" style="background:var(--bg2);">
   <div class="tab active" onclick="switchTab('summarizer', this)">Summarizer</div>
+  <div class="tab" id="tab-btn-analytics" onclick="switchTab('analytics', this)" style="display:none;">Analytics</div>
   <div class="tab" onclick="switchTab('history', this)">History ({{ history|length }})</div>
 </div>
 
@@ -741,6 +743,85 @@
 </main>
 </div>
 
+<!-- ── ANALYTICS TAB ───────────────────────────────────────────────────────── -->
+<div id="tab-analytics" class="tab-content">
+<main>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+
+    <div class="card" style="margin:0">
+      <h2>Compression Analysis</h2>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:0.85rem;color:var(--text2);">Original</span>
+          <span id="an-orig-words" style="font-weight:700;color:var(--text);font-size:1.1rem;">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:0.85rem;color:var(--text2);">Summary</span>
+          <span id="an-summ-words" style="font-weight:700;color:var(--accent2);font-size:1.1rem;">—</span>
+        </div>
+        <div style="background:var(--bg);border-radius:99px;height:8px;overflow:hidden;margin-top:4px;">
+          <div id="an-comp-bar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:99px;width:0%;transition:width 0.8s ease;"></div>
+        </div>
+        <div style="text-align:center;">
+          <span id="an-comp-pct" style="font-size:2rem;font-weight:800;color:var(--green);">—</span>
+          <span style="font-size:0.8rem;color:var(--text2);"> reduction</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin:0">
+      <h2>Readability & Pace</h2>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:0.85rem;color:var(--text2);">Reading Level</span>
+          <span id="an-read-level" style="font-weight:700;color:var(--accent2);">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:0.85rem;color:var(--text2);">Flesch Score</span>
+          <span id="an-flesch" style="font-weight:700;color:var(--text);">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:0.85rem;color:var(--text2);">Grade Level</span>
+          <span id="an-grade" style="font-weight:700;color:var(--text);">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:0.85rem;color:var(--text2);">Speaking Pace</span>
+          <span id="an-pace" style="font-weight:700;color:var(--yellow);">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:0.85rem;color:var(--text2);">Words/Minute</span>
+          <span id="an-wpm" style="font-weight:700;color:var(--text);">—</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card">
+    <h2>Top 15 Keywords — Word Frequency</h2>
+    <div id="chart-wordfreq" style="width:100%;height:320px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>Sentiment Timeline Across Sections</h2>
+    <div id="chart-sentiment" style="width:100%;height:280px;"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div class="card" style="margin:0">
+      <h2>Named Entity Types</h2>
+      <div id="chart-entities" style="width:100%;height:280px;"></div>
+    </div>
+    <div class="card" style="margin:0">
+      <h2>Parts of Speech</h2>
+      <div id="chart-pos" style="width:100%;height:280px;"></div>
+    </div>
+  </div>
+
+</main>
+</div>
+
 <div id="tab-history" class="tab-content">
 <main>
   <div class="card">
@@ -791,11 +872,29 @@
     document.querySelector(".theme-btn").textContent = isLight ? "🌙 Dark" : "☀️ Light";
   }
 
+  let _chartsDrawn = false;
+
   function switchTab(name, el) {
     document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     document.getElementById("tab-" + name).classList.add("active");
     el.classList.add("active");
+
+    if (name === "analytics") {
+      // Container is now visible — draw charts for the first time
+      if (!_chartsDrawn && _analyticsData) {
+        drawCharts(_analyticsData);
+        _chartsDrawn = true;
+      } else if (_chartsDrawn && window.Plotly) {
+        // Resize in case window was resized since last draw
+        setTimeout(() => {
+          ["chart-wordfreq","chart-sentiment","chart-entities","chart-pos"].forEach(id => {
+            const el2 = document.getElementById(id);
+            if (el2 && el2.data) Plotly.Plots.resize(el2);
+          });
+        }, 50);
+      }
+    }
   }
 
   function getFormats() {
@@ -834,6 +933,12 @@
     const dot = document.getElementById("status-dot");
     if (lbl) lbl.textContent = "Starting...";
     if (dot) { dot.style.background = "var(--accent)"; dot.style.animation = "pulse 1.5s infinite"; }
+
+    // Reset analytics state for the new run
+    _chartsDrawn  = false;
+    _analyticsData = null;
+    const tabBtn = document.getElementById("tab-btn-analytics");
+    if (tabBtn) tabBtn.style.display = "none";
 
     const resp    = await fetch("/summarize", {
       method: "POST",
@@ -930,6 +1035,151 @@
       }).join("");
 
     document.getElementById("results-section").scrollIntoView({ behavior:"smooth" });
+
+    if (r.analytics) {
+      const tabBtn = document.getElementById("tab-btn-analytics");
+      if (tabBtn) tabBtn.style.display = "";
+      renderAnalytics(r.analytics);
+    }
+  }
+
+  let _analyticsData = null;
+
+  function renderAnalytics(a) {
+    if (!a) return;
+
+    // Store data and fill in the text stats immediately
+    _analyticsData = a;
+
+    const c = a.compression;
+    document.getElementById("an-orig-words").textContent = c.original_words.toLocaleString() + " words";
+    document.getElementById("an-summ-words").textContent = c.summary_words.toLocaleString() + " words";
+    document.getElementById("an-comp-pct").textContent   = c.compression_pct + "%";
+    document.getElementById("an-comp-bar").style.width   = c.compression_pct + "%";
+
+    const r = a.readability;
+    document.getElementById("an-read-level").textContent = r.reading_level;
+    document.getElementById("an-flesch").textContent     = r.flesch_reading_ease + " / 100";
+    document.getElementById("an-grade").textContent      = "Grade " + r.flesch_kincaid_grade;
+
+    const p = a.pace;
+    document.getElementById("an-pace").textContent = p.pace;
+    document.getElementById("an-wpm").textContent  = p.wpm > 0 ? p.wpm + " wpm" : "N/A";
+
+    // Charts are drawn only when the tab becomes visible (see switchTab)
+  }
+
+  function drawCharts(a) {
+    if (!a || !window.Plotly) return;
+
+    const isDark = !document.body.classList.contains("light");
+    const bg     = isDark ? "#1e293b" : "#ffffff";
+    const font   = isDark ? "#e2e8f0" : "#1e293b";
+    const grid   = isDark ? "#334155" : "#e2e8f0";
+
+    const base = {
+      paper_bgcolor: bg,
+      plot_bgcolor : bg,
+      font         : { color: font, family: "Segoe UI, system-ui, sans-serif", size: 11 },
+      margin       : { t: 20, b: 50, l: 50, r: 20, pad: 4 },
+      showlegend   : false,
+    };
+
+    // ── Word Frequency ────────────────────────────────────────────────────
+    const wf = a.word_freq;
+    Plotly.newPlot("chart-wordfreq", [{
+      type         : "bar",
+      x            : wf.map(d => d.word),
+      y            : wf.map(d => d.count),
+      marker       : { color: wf.map((_, i) => `hsl(${240 + i * 8}, 70%, ${isDark ? 65 : 50}%)`) },
+      hovertemplate: "<b>%{x}</b><br>Count: %{y}<extra></extra>",
+    }], {
+      ...base,
+      xaxis: { gridcolor: grid, tickfont: { size: 10 }, tickangle: -30 },
+      yaxis: {
+        gridcolor: grid,
+        title    : { text: "Frequency", font: { size: 10 } },
+        tickformat: "d",
+        rangemode : "tozero",
+      },
+    }, { responsive: true, displayModeBar: false });
+
+    // ── Sentiment Timeline ────────────────────────────────────────────────
+    const sent = a.sentiment;
+    const sentColors = sent.map(s =>
+      s.label === "Positive" ? "#22c55e" : s.label === "Negative" ? "#ef4444" : "#f59e0b"
+    );
+    Plotly.newPlot("chart-sentiment", [
+      {
+        type         : "scatter",
+        mode         : "lines+markers",
+        x            : sent.map(s => s.section),
+        y            : sent.map(s => s.score),
+        line         : { color: "#6366f1", width: 2.5, shape: "spline" },
+        marker       : { color: sentColors, size: 9, line: { color: "#1e293b", width: 1.5 } },
+        fill         : "tozeroy",
+        fillcolor    : isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.08)",
+        hovertemplate: "<b>%{x}</b><br>Score: %{y}<extra></extra>",
+      },
+      {
+        type: "scatter", mode: "lines",
+        x: [sent[0]?.section, sent[sent.length - 1]?.section],
+        y: [0, 0],
+        line: { color: grid, width: 1, dash: "dot" },
+        hoverinfo: "skip",
+      }
+    ], {
+      ...base,
+      xaxis: { gridcolor: grid, tickfont: { size: 9 } },
+      yaxis: {
+        gridcolor: grid,
+        zeroline : false,
+        title    : { text: "Sentiment Score", font: { size: 10 } },
+        tickformat: ".1f",
+      },
+    }, { responsive: true, displayModeBar: false });
+
+    // ── Entity Types Pie ──────────────────────────────────────────────────
+    const et = a.entity_types;
+    Plotly.newPlot("chart-entities", [{
+      type     : "pie",
+      labels   : et.map(e => e.type),
+      values   : et.map(e => e.count),
+      hole     : 0.45,
+      marker   : { colors: ["#6366f1","#22c55e","#f59e0b","#ef4444","#3b82f6","#a855f7","#14b8a6","#f97316"] },
+      textinfo : "label+percent",
+      textfont : { size: 10, color: font },
+      hovertemplate: "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
+    }], {
+      ...base,
+      margin: { t: 20, b: 20, l: 20, r: 20 },
+    }, { responsive: true, displayModeBar: false });
+
+    // ── Parts of Speech ───────────────────────────────────────────────────
+    const pos = a.pos;
+    if (pos && pos.length > 0) {
+      Plotly.newPlot("chart-pos", [{
+        type         : "bar",
+        orientation  : "h",
+        x            : pos.map(d => d.pct),
+        y            : pos.map(d => d.pos),
+        text         : pos.map(d => d.pct + "%"),
+        textposition : "outside",
+        textfont     : { color: font, size: 10 },
+        marker       : { color: ["#6366f1","#22c55e","#f59e0b","#ef4444","#3b82f6"] },
+        hovertemplate: "<b>%{y}</b><br>%{x:.1f}%<extra></extra>",
+      }], {
+        ...base,
+        margin: { t: 10, b: 30, l: 110, r: 60, pad: 4 },
+        xaxis: {
+          gridcolor: grid,
+          title    : { text: "% of words", font: { size: 10 } },
+          range    : [0, 65],
+          tickformat: ".0f",
+        },
+        yaxis: { gridcolor: grid },
+      }, { responsive: true, displayModeBar: false });
+    }
   }
 
   function copyNotes() {
