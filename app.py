@@ -22,13 +22,12 @@ from flask import Flask, render_template, request, jsonify, send_file
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.transcript_fetcher import fetch_transcript
-from src.summarizer          import summarize_transcript
-from src.keyword_extractor   import extract_keywords
+from src.gemma_engine        import summarize_transcript, extract_keywords, check_ollama_ready
 from src.note_generator      import generate_notes
 from src.exporter            import export_all
 from src.video_info          import get_video_info
 from src.analyzer            import run_all as run_analytics
-from config                  import OUTPUT_DIR, DEVICE
+from config                  import OUTPUT_DIR, DEVICE, GEMMA_MODEL
 
 import torch
 
@@ -79,7 +78,7 @@ def run_pipeline(job_id: str, url: str, formats: list):
         update(28, f"Transcript fetched — {word_count:,} words in {fetch_time}s")
 
         # 2. Summarize on GPU
-        update(32, f"Summarising on {DEVICE.upper()} (BART-large-CNN)...")
+        update(32, f"Summarising with {GEMMA_MODEL} (Gemma 4)...")
         t0 = time.time()
         summary_data = summarize_transcript(transcript)
         gpu_time     = round(time.time() - t0, 1)
@@ -236,7 +235,9 @@ def download(filename):
 
 if __name__ == "__main__":
     print("\n" + "="*55)
-    print("  YouTube Transcript Summarizer v1.1 — Web UI")
+    print("  YouTube Transcript Summarizer v2.0 — Web UI")
+    print(f"  Engine: {GEMMA_MODEL} (Gemma 4 via Ollama)")
     print("  Open browser:  http://localhost:5000")
     print("="*55 + "\n")
+    check_ollama_ready()
     app.run(debug=False, host="0.0.0.0", port=5000)
