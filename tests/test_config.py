@@ -36,9 +36,14 @@ def test_models_dir_under_project(cfg):
     assert ROOT_DIR in cfg.MODELS_DIR
 
 
-def test_summarization_model_is_nonempty_string(cfg):
-    assert isinstance(cfg.SUMMARIZATION_MODEL, str)
-    assert len(cfg.SUMMARIZATION_MODEL) > 0
+def test_ollama_host_is_valid_url(cfg):
+    assert isinstance(cfg.OLLAMA_HOST, str)
+    assert cfg.OLLAMA_HOST.startswith("http")
+
+
+def test_gemma_model_is_nonempty_string(cfg):
+    assert isinstance(cfg.GEMMA_MODEL, str)
+    assert len(cfg.GEMMA_MODEL) > 0
 
 
 def test_whisper_model_valid_size(cfg):

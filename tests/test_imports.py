@@ -108,10 +108,9 @@ def test_config_paths_are_strings():
     assert isinstance(cfg.BASE_DIR, str)
 
 
-def test_config_summarization_params():
+def test_config_ollama_params():
     cfg = _load_config_with_mock()
-    assert isinstance(cfg.CHUNK_TOKEN_LIMIT, int)
-    assert isinstance(cfg.SUMMARY_MIN_LENGTH, int)
-    assert isinstance(cfg.SUMMARY_MAX_LENGTH, int)
-    assert cfg.SUMMARY_MIN_LENGTH < cfg.SUMMARY_MAX_LENGTH
-    assert cfg.CHUNK_TOKEN_LIMIT > 0
+    assert isinstance(cfg.OLLAMA_HOST, str)
+    assert cfg.OLLAMA_HOST.startswith("http")
+    assert isinstance(cfg.GEMMA_MODEL, str)
+    assert len(cfg.GEMMA_MODEL) > 0
