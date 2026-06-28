@@ -16,6 +16,7 @@ from src.analyzer import (
     readability,
     sentiment_timeline,
     speaking_pace,
+    entity_type_distribution,
 )
 
 
@@ -78,3 +79,31 @@ def test_speaking_pace_valid_duration():
 def test_speaking_pace_invalid_duration_returns_unknown():
     result = speaking_pace("some text", "not-a-duration")
     assert result["pace"] == "Unknown"
+
+
+def test_entity_type_distribution_groups_by_type():
+    entities_typed = [
+        {"name": "MIT", "type": "Organization"},
+        {"name": "Lisha Li", "type": "Person"},
+        {"name": "Stanford", "type": "Organization"},
+    ]
+    result = entity_type_distribution(entities_typed)
+    types = {item["type"]: item["count"] for item in result}
+    assert types["Organization"] == 2
+    assert types["Person"] == 1
+
+
+def test_entity_type_distribution_handles_empty_list():
+    result = entity_type_distribution([])
+    assert result == [{"type": "None found", "count": 0, "pct": 0}]
+
+
+def test_entity_type_distribution_percentages_sum_to_100():
+    entities_typed = [
+        {"name": "A", "type": "Person"},
+        {"name": "B", "type": "Person"},
+        {"name": "C", "type": "Location"},
+    ]
+    result = entity_type_distribution(entities_typed)
+    total_pct = sum(item["pct"] for item in result)
+    assert round(total_pct) == 100
