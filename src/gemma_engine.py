@@ -310,9 +310,10 @@ def extract_keywords(transcript: str) -> dict:
 
     Returns:
         {
-            "keywords" : list[str],
-            "entities" : list[str],
-            "combined" : list[str],
+            "keywords"      : list[str],
+            "entities"      : list[str],           # flat names (back-compat)
+            "entities_typed": list[dict],          # [{"name": str, "type": str}, ...]
+            "combined"      : list[str],
         }
     """
     print(f"[Gemma] Extracting keywords and entities with {GEMMA_MODEL}...")
@@ -326,13 +327,18 @@ Read the following transcript and extract:
 1. Up to {TOP_KEYWORDS} important keywords or short key phrases
    (technical terms, concepts, recurring topics).
 2. Named entities mentioned: people, organisations, products, places.
+   For each entity provide its name AND its type.
+   Valid types: Person, Organization, Product, Location, Other.
    Do not include generic words.
 
 Respond with ONLY this JSON structure, nothing else:
 
 {{
   "keywords": ["term1", "term2", ...],
-  "entities": ["Entity Name 1", "Entity Name 2", ...]
+  "entities": [
+    {{"name": "Entity Name 1", "type": "Person"}},
+    {{"name": "Entity Name 2", "type": "Organization"}}
+  ]
 }}
 
 Transcript:
@@ -354,23 +360,42 @@ Transcript:
         raise last_error
 
     keywords = [k.strip() for k in data.get("keywords", []) if k.strip()]
-    entities = [e.strip() for e in data.get("entities", []) if e.strip()]
+
+    # Accept both new typed format [{"name": ..., "type": ...}] and the old
+    # flat list-of-strings format so the function degrades gracefully if
+    # Gemma ignores the type instruction.
+    raw_entities = data.get("entities", [])
+    entities_typed = []
+    flat_entities  = []
+    for e in raw_entities:
+        if isinstance(e, dict):
+            name = e.get("name", "").strip()
+            etype = e.get("type", "Other").strip()
+            if name:
+                entities_typed.append({"name": name, "type": etype})
+                flat_entities.append(name)
+        elif isinstance(e, str) and e.strip():
+            # Fallback: Gemma returned a flat string — wrap it as typed
+            name = e.strip()
+            entities_typed.append({"name": name, "type": "Other"})
+            flat_entities.append(name)
 
     # Merge: entities first (higher priority), then keywords, deduplicated
     seen = set()
     combined = []
-    for item in entities + keywords:
+    for item in flat_entities + keywords:
         key = item.lower()
         if key not in seen:
             seen.add(key)
             combined.append(item)
 
-    print(f"[Gemma] Found {len(entities)} entities, {len(keywords)} keywords.")
+    print(f"[Gemma] Found {len(entities_typed)} entities, {len(keywords)} keywords.")
 
     return {
-        "keywords": keywords,
-        "entities": entities,
-        "combined": combined,
+        "keywords"      : keywords,
+        "entities"      : flat_entities,
+        "entities_typed": entities_typed,
+        "combined"      : combined,
     }
 
 
