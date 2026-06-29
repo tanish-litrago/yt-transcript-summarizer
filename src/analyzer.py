@@ -1,5 +1,4 @@
 import re
-import math
 from collections import Counter
 
 try:
@@ -114,36 +113,23 @@ def sentiment_timeline(chunks: list) -> list:
     return results
 
 
-def entity_type_distribution(entities_raw: list, transcript: str) -> list:
-    try:
-        import spacy
-        nlp = spacy.load("en_core_web_sm")
-        doc = nlp(transcript[:50000])
-        type_counts = Counter()
-        label_map = {
-            "PERSON"      : "Person",
-            "ORG"         : "Organization",
-            "GPE"         : "Location",
-            "PRODUCT"     : "Product",
-            "WORK_OF_ART" : "Work/Title",
-            "EVENT"       : "Event",
-            "LAW"         : "Law/Policy",
-            "NORP"        : "Group/Nationality",
-        }
-        for ent in doc.ents:
-            if ent.label_ in label_map:
-                type_counts[label_map[ent.label_]] += 1
-        if not type_counts:
-            raise ValueError("No entities found")
-        total = sum(type_counts.values())
-        return [
-            {"type": t, "count": c, "pct": round(c/total*100, 1)}
-            for t, c in type_counts.most_common()
-        ]
-    except Exception:
-        if entities_raw:
-            return [{"type": "Named Entity", "count": len(entities_raw), "pct": 100.0}]
+def entity_type_distribution(entities_typed: list) -> list:
+    """
+    Groups Gemma's typed entities (from gemma_engine.extract_keywords)
+    into counts per type for the Named Entity Types chart.
+
+    entities_typed: list of {"name": str, "type": str} dicts.
+    Replaces the old spaCy-based NER grouping removed in v2.0.
+    """
+    if not entities_typed:
         return [{"type": "None found", "count": 0, "pct": 0}]
+
+    type_counts = Counter(e.get("type", "Other") for e in entities_typed)
+    total = sum(type_counts.values())
+    return [
+        {"type": t, "count": c, "pct": round(c / total * 100, 1)}
+        for t, c in type_counts.most_common()
+    ]
 
 
 def speaking_pace(transcript: str, duration_str: str) -> dict:
@@ -166,38 +152,13 @@ def speaking_pace(transcript: str, duration_str: str) -> dict:
     return {"wpm": 0, "pace": "Unknown", "duration_min": 0}
 
 
-def pos_breakdown(transcript: str) -> list:
-    try:
-        import spacy
-        nlp = spacy.load("en_core_web_sm")
-        doc = nlp(transcript[:30000])
-        pos_map = {
-            "NOUN": "Nouns", "VERB": "Verbs", "ADJ": "Adjectives",
-            "ADV": "Adverbs", "PROPN": "Proper Nouns",
-        }
-        counts = Counter()
-        for token in doc:
-            if token.pos_ in pos_map and not token.is_stop and token.is_alpha:
-                counts[pos_map[token.pos_]] += 1
-        total = sum(counts.values())
-        if total == 0:
-            return []
-        return [
-            {"pos": p, "count": c, "pct": round(c/total*100, 1)}
-            for p, c in counts.most_common()
-        ]
-    except Exception:
-        return []
-
-
 def run_all(transcript: str, summary: str, chunks: list,
-            entities: list, duration_str: str) -> dict:
+            entities_typed: list, duration_str: str) -> dict:
     return {
         "word_freq"   : word_frequency(transcript, 15),
         "compression" : compression_ratio(transcript, summary),
         "readability" : readability(summary),
         "sentiment"   : sentiment_timeline(chunks),
-        "entity_types": entity_type_distribution(entities, transcript),
+        "entity_types": entity_type_distribution(entities_typed),
         "pace"        : speaking_pace(transcript, duration_str),
-        "pos"         : pos_breakdown(transcript),
     }
