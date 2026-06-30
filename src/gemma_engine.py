@@ -40,7 +40,7 @@ def _call_gemma(prompt: str, system: str = None, temperature: float = 0.3) -> st
         "options": {
             "temperature": temperature,
             # num_ctx: total token budget for prompt + response.
-            # The e2b model default is often 2048 which is too small for
+            # The e4b model default is often 2048 which is too small for
             # a transcript + JSON output. 8192 keeps us well within the
             # model's actual context limit while giving the response room.
             "num_ctx": 8192,
@@ -92,7 +92,7 @@ def _truncate_transcript(transcript: str, max_words: int = 1200) -> str:
     """
     Caps the transcript at `max_words` words before sending to Gemma.
 
-    The e2b (2B-parameter) model has a small effective context window.
+    The e4b (4B-parameter) model has a small effective context window.
     Feeding it a very long transcript causes it to run out of token budget
     before it can generate a complete JSON response, producing truncated
     output like bare '{'. 1200 words (~1600 tokens) leaves enough room in
@@ -104,7 +104,7 @@ def _truncate_transcript(transcript: str, max_words: int = 1200) -> str:
     truncated = " ".join(words[:max_words])
     print(
         f"[Gemma] Transcript truncated from {len(words):,} to {max_words:,} words "
-        f"(e2b context limit)."
+        f"(e4b context limit)."
     )
     return truncated
 
@@ -236,7 +236,7 @@ def summarize_transcript(transcript: str) -> dict:
     print(f"[Gemma] Summarising transcript ({len(transcript.split())} words) with {GEMMA_MODEL}...")
 
     # Truncate *before* building the prompt so the whole payload fits in
-    # the model's context window (e2b is a 2B-parameter model).
+    # the model's context window (e4b is a 4B-parameter model).
     transcript_input = _truncate_transcript(transcript)
 
     prompt = f"""

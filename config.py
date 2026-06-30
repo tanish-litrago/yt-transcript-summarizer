@@ -12,7 +12,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 #   ollama serve
 #   ollama pull gemma4:e4b
 OLLAMA_HOST = "http://localhost:11434"
-GEMMA_MODEL = "gemma4:e2b"
+GEMMA_MODEL = "gemma4:e4b"
 
 # ── Whisper speech-to-text model (fallback when no captions exist) ────────────
 # Options: "tiny", "base", "small", "medium", "large"
