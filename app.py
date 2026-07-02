@@ -96,11 +96,11 @@ def run_pipeline(job_id: str, url: str, formats: list):
         # 3b. Analytics
         update(85, "Running data analysis...")
         analytics_data = run_analytics(
-            transcript   = transcript,
-            summary      = summary_data["full_summary"],
-            chunks       = summary_data["chunks"],
-            entities     = keyword_data["entities"],
-            duration_str = video_info["duration"],
+            transcript     = transcript,
+            summary        = summary_data["full_summary"],
+            chunks         = summary_data["chunks"],
+            entities_typed = keyword_data["entities_typed"],
+            duration_str   = video_info["duration"],
         )
 
         # 4. Notes
