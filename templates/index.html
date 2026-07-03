@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>YouTube Transcript Summarizer v1.2</title>
+  <title>YouTube Transcript Summarizer v2.0</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.1/plotly.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -601,8 +601,8 @@
   <div class="logo">
     <div class="logo-icon">▶</div>
     <div>
-      <h1>YouTube Transcript Summarizer <span style="font-size:0.7rem;opacity:0.7">v1.2</span></h1>
-      <p>CUDA-Accelerated NLP &nbsp;·&nbsp; HuggingFace Transformers</p>
+      <h1>YouTube Transcript Summarizer <span style="font-size:0.7rem;opacity:0.7">v2.0</span></h1>
+      <p>Gemma 4 (Ollama) &nbsp;·&nbsp; CUDA-Accelerated Whisper Fallback</p>
     </div>
   </div>
   <div class="header-right">
@@ -808,15 +808,9 @@
     <div id="chart-sentiment" style="width:100%;height:280px;"></div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-    <div class="card" style="margin:0">
-      <h2>Named Entity Types</h2>
-      <div id="chart-entities" style="width:100%;height:280px;"></div>
-    </div>
-    <div class="card" style="margin:0">
-      <h2>Parts of Speech</h2>
-      <div id="chart-pos" style="width:100%;height:280px;"></div>
-    </div>
+  <div class="card">
+    <h2>Named Entity Types</h2>
+    <div id="chart-entities" style="width:100%;height:300px;"></div>
   </div>
 
 </main>
@@ -888,7 +882,7 @@
       } else if (_chartsDrawn && window.Plotly) {
         // Resize in case window was resized since last draw
         setTimeout(() => {
-          ["chart-wordfreq","chart-sentiment","chart-entities","chart-pos"].forEach(id => {
+          ["chart-wordfreq","chart-sentiment","chart-entities"].forEach(id => {
             const el2 = document.getElementById(id);
             if (el2 && el2.data) Plotly.Plots.resize(el2);
           });
@@ -911,7 +905,7 @@
     if (!label) return;
     if      (p < 15)  { label.textContent = "Fetching video info...";         dot.style.background = "var(--accent)"; }
     else if (p < 32)  { label.textContent = "Fetching transcript...";         dot.style.background = "var(--accent)"; }
-    else if (p < 75)  { label.textContent = "Summarising on CUDA...";         dot.style.background = "#f59e0b"; }
+    else if (p < 75)  { label.textContent = "Summarising on Gemma4...";         dot.style.background = "#f59e0b"; }
     else if (p < 88)  { label.textContent = "Extracting keywords...";         dot.style.background = "var(--accent)"; }
     else if (p < 100) { label.textContent = "Generating notes & exporting...";dot.style.background = "var(--accent)"; }
     else              { label.textContent = "Complete!";                       dot.style.background = "var(--green)";  dot.style.animation = "none"; }
@@ -999,7 +993,7 @@
       if (subEl) subEl.textContent = subText || '';
     }
 
-    setTimingItem('spd-gpu-num',        'spd-gpu-unit',        'spd-gpu-sub',        gpuTime, 'BART-large · CUDA fp16');
+    setTimingItem('spd-gpu-num',        'spd-gpu-unit',        'spd-gpu-sub',        gpuTime, 'Gemma4:e4b');
     setTimingItem('spd-transcript-num', 'spd-transcript-unit', 'spd-transcript-sub', trTime,  trTime !== null ? (r.source === 'youtube_api' ? 'YouTube API' : 'Whisper GPU') : '');
     setTimingItem('spd-total-num',      'spd-total-unit',      'spd-total-sub',      totTime, 'End-to-end pipeline');
 
@@ -1148,38 +1142,12 @@
       hole     : 0.45,
       marker   : { colors: ["#6366f1","#22c55e","#f59e0b","#ef4444","#3b82f6","#a855f7","#14b8a6","#f97316"] },
       textinfo : "label+percent",
-      textfont : { size: 10, color: font },
+      textfont : { size: 11, color: font },
       hovertemplate: "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
     }], {
       ...base,
       margin: { t: 20, b: 20, l: 20, r: 20 },
     }, { responsive: true, displayModeBar: false });
-
-    // ── Parts of Speech ───────────────────────────────────────────────────
-    const pos = a.pos;
-    if (pos && pos.length > 0) {
-      Plotly.newPlot("chart-pos", [{
-        type         : "bar",
-        orientation  : "h",
-        x            : pos.map(d => d.pct),
-        y            : pos.map(d => d.pos),
-        text         : pos.map(d => d.pct + "%"),
-        textposition : "outside",
-        textfont     : { color: font, size: 10 },
-        marker       : { color: ["#6366f1","#22c55e","#f59e0b","#ef4444","#3b82f6"] },
-        hovertemplate: "<b>%{y}</b><br>%{x:.1f}%<extra></extra>",
-      }], {
-        ...base,
-        margin: { t: 10, b: 30, l: 110, r: 60, pad: 4 },
-        xaxis: {
-          gridcolor: grid,
-          title    : { text: "% of words", font: { size: 10 } },
-          range    : [0, 65],
-          tickformat: ".0f",
-        },
-        yaxis: { gridcolor: grid },
-      }, { responsive: true, displayModeBar: false });
-    }
   }
 
   function copyNotes() {
