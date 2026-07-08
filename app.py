@@ -1,12 +1,11 @@
 """
-app.py  —  v1.1
+app.py  —  v2.5
 ────────────────
 Flask Web UI for YouTube Transcript Summarizer
-New in v1.1:
-  - Video title + thumbnail
-  - GPU vs CPU speed comparison
-  - Processing history
-  - Better error messages
+New in v2.5:
+  - RAG (ChromaDB + LangChain + Ollama nomic-embed-text)
+  - Chat-with-Video tab: ask questions, get Gemma-grounded answers
+  - Vector store cached per video_id in outputs/chroma/
 Run: python app.py  →  http://localhost:5000
 """
 
@@ -27,6 +26,7 @@ from src.note_generator      import generate_notes
 from src.exporter            import export_all
 from src.video_info          import get_video_info
 from src.analyzer            import run_all as run_analytics
+from src.rag_engine          import build_vector_store, answer_question
 from config                  import OUTPUT_DIR, DEVICE, GEMMA_MODEL
 
 import torch
@@ -113,8 +113,18 @@ def run_pipeline(job_id: str, url: str, formats: list):
             title        = video_info["title"],
         )
 
-        # 5. Export
-        update(93, "Exporting files...")
+        # 5. RAG index (v2.5) — build or reuse ChromaDB vector store
+        update(92, "Building RAG index for Chat-with-Video...")
+        try:
+            build_vector_store(transcript, video_id)
+            rag_ready = True
+        except Exception as rag_err:
+            # RAG failure is non-fatal — summary/export still complete
+            print(f"[RAG] WARNING: index build failed: {rag_err}")
+            rag_ready = False
+
+        # 6. Export
+        update(96, "Exporting files...")
         paths = export_all(notes_md, video_id, formats=formats)
 
         total_time = round(time.time() - t_total, 1)
@@ -161,6 +171,7 @@ def run_pipeline(job_id: str, url: str, formats: list):
             "language"   : transcript_data["language"],
             "device"     : DEVICE.upper(),
             "analytics"  : analytics_data,
+            "rag_ready"  : rag_ready,   # v2.5: Chat tab enabled when True
         }
 
     except Exception as e:
@@ -233,11 +244,31 @@ def download(filename):
     return send_file(full_path, as_attachment=True)
 
 
+@app.route("/chat", methods=["POST"])
+def chat():
+    """v2.5 — RAG Chat-with-Video endpoint."""
+    data     = request.get_json()
+    video_id = (data.get("video_id") or "").strip()
+    question = (data.get("question") or "").strip()
+
+    if not video_id or not question:
+        return jsonify({"error": "video_id and question are required."}), 400
+
+    try:
+        result = answer_question(question, video_id)
+        return jsonify(result)
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": f"Chat error: {e}"}), 500
+
+
 if __name__ == "__main__":
-    print("\n" + "="*55)
-    print("  YouTube Transcript Summarizer v2.0 — Web UI")
+    print("\n" + "="*60)
+    print("  YouTube Transcript Summarizer v2.5 — Web UI")
     print(f"  Engine: {GEMMA_MODEL} (Gemma 4 via Ollama)")
+    print("  Chat:   ChromaDB + nomic-embed-text RAG")
     print("  Open browser:  http://localhost:5000")
-    print("="*55 + "\n")
+    print("="*60 + "\n")
     check_ollama_ready()
     app.run(debug=False, host="0.0.0.0", port=5000)
