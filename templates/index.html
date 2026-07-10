@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>YouTube Transcript Summarizer v2.0</title>
+  <title>YouTube Transcript Summarizer v2.5</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.1/plotly.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -616,6 +616,7 @@
 
 <div class="tabs" style="background:var(--bg2);">
   <div class="tab active" onclick="switchTab('summarizer', this)">Summarizer</div>
+  <div class="tab" id="tab-btn-chat" onclick="switchTab('chat', this)" style="display:none;">Chat</div>
   <div class="tab" id="tab-btn-analytics" onclick="switchTab('analytics', this)" style="display:none;">Analytics</div>
   <div class="tab" onclick="switchTab('history', this)">History ({{ history|length }})</div>
 </div>
@@ -737,6 +738,50 @@
     <div class="card">
       <h2>Download Files</h2>
       <div class="download-row" id="download-row"></div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- ── CHAT TAB (v2.5) ──────────────────────────────────────────────────────── -->
+<div id="tab-chat" class="tab-content">
+<main>
+  <div class="card" style="display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;">
+
+    <!-- Chat header -->
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+      <span style="font-size:1.3rem;"></span>
+      <div>
+        <h2 style="margin:0;font-size:1rem;">Chat with Video</h2>
+        <p id="chat-subtitle" style="font-size:0.75rem;color:var(--text2);margin:0;">Ask anything about the video content</p>
+      </div>
+      <div id="chat-locked-badge" style="margin-left:auto;display:none;background:var(--yellow);color:#000;font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:99px;"> Indexing…</div>
+    </div>
+
+    <!-- Message thread -->
+    <div id="chat-thread" style="flex:1;min-height:340px;max-height:480px;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px;">
+      <div id="chat-empty" style="text-align:center;color:var(--text2);margin:auto;">
+        <div style="font-size:2.5rem;margin-bottom:8px;">🎬</div>
+        <p style="font-size:0.9rem;">Ask anything about this video's content.</p>
+        <p style="font-size:0.78rem;margin-top:4px;">Gemma will answer only from the transcript.</p>
+      </div>
+    </div>
+
+    <!-- Input row -->
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;">
+      <input id="chat-input"
+             type="text"
+             placeholder="Ask a question about the video..."
+             style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-size:0.9rem;outline:none;"
+             autocomplete="off" spellcheck="false"
+             onkeydown="if(event.key==='Enter')sendChatMessage()"
+             disabled />
+      <button id="chat-send-btn"
+              onclick="sendChatMessage()"
+              disabled
+              style="background:var(--accent);color:white;border:none;border-radius:8px;padding:9px 18px;font-weight:600;cursor:pointer;font-size:0.9rem;transition:opacity 0.2s;"
+              >Send</button>
     </div>
 
   </div>
@@ -903,12 +948,13 @@
     const label = document.getElementById("status-label");
     const dot   = document.getElementById("status-dot");
     if (!label) return;
-    if      (p < 15)  { label.textContent = "Fetching video info...";         dot.style.background = "var(--accent)"; }
-    else if (p < 32)  { label.textContent = "Fetching transcript...";         dot.style.background = "var(--accent)"; }
-    else if (p < 75)  { label.textContent = "Summarising on Gemma4...";         dot.style.background = "#f59e0b"; }
-    else if (p < 88)  { label.textContent = "Extracting keywords...";         dot.style.background = "var(--accent)"; }
-    else if (p < 100) { label.textContent = "Generating notes & exporting...";dot.style.background = "var(--accent)"; }
-    else              { label.textContent = "Complete!";                       dot.style.background = "var(--green)";  dot.style.animation = "none"; }
+    if      (p < 15)  { label.textContent = "Fetching video info...";          dot.style.background = "var(--accent)"; }
+    else if (p < 32)  { label.textContent = "Fetching transcript...";          dot.style.background = "var(--accent)"; }
+    else if (p < 75)  { label.textContent = "Summarising on Gemma 4...";       dot.style.background = "#f59e0b"; }
+    else if (p < 88)  { label.textContent = "Extracting keywords...";          dot.style.background = "var(--accent)"; }
+    else if (p < 95)  { label.textContent = "Building RAG index for Chat...";  dot.style.background = "#a855f7"; }
+    else if (p < 100) { label.textContent = "Generating notes & exporting..."; dot.style.background = "var(--accent)"; }
+    else              { label.textContent = "Complete!";                        dot.style.background = "var(--green)";  dot.style.animation = "none"; }
   }
 
   async function startJob() {
@@ -928,11 +974,24 @@
     if (lbl) lbl.textContent = "Starting...";
     if (dot) { dot.style.background = "var(--accent)"; dot.style.animation = "pulse 1.5s infinite"; }
 
-    // Reset analytics state for the new run
+    // Reset analytics + chat state for the new run
     _chartsDrawn  = false;
     _analyticsData = null;
+    _currentVideoId = null;
     const tabBtn = document.getElementById("tab-btn-analytics");
     if (tabBtn) tabBtn.style.display = "none";
+    const chatBtn = document.getElementById("tab-btn-chat");
+    if (chatBtn) chatBtn.style.display = "none";
+    // Reset chat UI
+    document.getElementById("chat-thread").innerHTML = `
+      <div id="chat-empty" style="text-align:center;color:var(--text2);margin:auto;">
+        <div style="font-size:2.5rem;margin-bottom:8px;">🎬</div>
+        <p style="font-size:0.9rem;">Ask anything about this video's content.</p>
+        <p style="font-size:0.78rem;margin-top:4px;">Gemma will answer only from the transcript.</p>
+      </div>`;
+    document.getElementById("chat-input").disabled = true;
+    document.getElementById("chat-send-btn").disabled = true;
+    document.getElementById("chat-locked-badge").style.display = "none";
 
     const resp    = await fetch("/summarize", {
       method: "POST",
@@ -1035,9 +1094,108 @@
       if (tabBtn) tabBtn.style.display = "";
       renderAnalytics(r.analytics);
     }
+
+    // v2.5: unlock Chat tab if RAG index was built successfully
+    _currentVideoId = r.video_id || null;
+    const chatBtn = document.getElementById("tab-btn-chat");
+    if (chatBtn) {
+      chatBtn.style.display = "";
+      if (r.rag_ready) {
+        document.getElementById("chat-input").disabled = false;
+        document.getElementById("chat-send-btn").disabled = false;
+        document.getElementById("chat-locked-badge").style.display = "none";
+        document.getElementById("chat-subtitle").textContent = "Ask anything — Gemma answers from the transcript";
+      } else {
+        document.getElementById("chat-locked-badge").style.display = "";
+        document.getElementById("chat-subtitle").textContent = "RAG index unavailable — check console for errors";
+      }
+    }
   }
 
   let _analyticsData = null;
+  let _currentVideoId = null;
+
+  async function sendChatMessage() {
+    if (!_currentVideoId) return;
+    const input = document.getElementById("chat-input");
+    const btn   = document.getElementById("chat-send-btn");
+    const question = input.value.trim();
+    if (!question) return;
+
+    // Hide empty state
+    const empty = document.getElementById("chat-empty");
+    if (empty) empty.remove();
+
+    const thread = document.getElementById("chat-thread");
+
+    // Append user bubble
+    const userBubble = document.createElement("div");
+    userBubble.style.cssText = "display:flex;justify-content:flex-end;";
+    userBubble.innerHTML = `<div style="background:var(--accent);color:white;padding:9px 14px;border-radius:14px 14px 2px 14px;max-width:75%;font-size:0.88rem;line-height:1.45;">${question.replace(/</g,'&lt;')}</div>`;
+    thread.appendChild(userBubble);
+
+    // Append typing indicator
+    const typingEl = document.createElement("div");
+    typingEl.style.cssText = "display:flex;justify-content:flex-start;";
+    typingEl.innerHTML = `<div style="background:var(--bg3);color:var(--text2);padding:9px 14px;border-radius:14px 14px 14px 2px;font-size:0.85rem;">Thinking…</div>`;
+    thread.appendChild(typingEl);
+    thread.scrollTop = thread.scrollHeight;
+
+    input.value = "";
+    input.disabled = true;
+    btn.disabled = true;
+
+    try {
+      const resp = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ video_id: _currentVideoId, question }),
+      });
+      const data = await resp.json();
+
+      typingEl.remove();
+
+      if (data.error) {
+        const errEl = document.createElement("div");
+        errEl.style.cssText = "display:flex;justify-content:flex-start;";
+        errEl.innerHTML = `<div style="background:#7f1d1d;color:#fca5a5;padding:9px 14px;border-radius:14px 14px 14px 2px;font-size:0.85rem;max-width:80%;">${data.error}</div>`;
+        thread.appendChild(errEl);
+      } else {
+        // Answer bubble
+        const answerEl = document.createElement("div");
+        answerEl.style.cssText = "display:flex;flex-direction:column;align-items:flex-start;gap:6px;";
+
+        let sourcesHtml = "";
+        if (data.sources && data.sources.length) {
+          const items = data.sources.map((s,i) =>
+            `<li style="margin-bottom:4px;"><span style="color:var(--text2);font-size:0.78rem;">${(s+'...').replace(/</g,'&lt;')}</span></li>`
+          ).join("");
+          sourcesHtml = `<details style="margin-top:4px;">
+            <summary style="font-size:0.75rem;color:var(--accent2);cursor:pointer;list-style:none;">📎 ${data.sources.length} source excerpt${data.sources.length>1?'s':''}</summary>
+            <ul style="margin:6px 0 0 12px;padding:0;">${items}</ul>
+          </details>`;
+        }
+
+        answerEl.innerHTML = `
+          <div style="background:var(--bg3);color:var(--text);padding:10px 14px;border-radius:14px 14px 14px 2px;max-width:80%;font-size:0.88rem;line-height:1.5;">
+            ${data.answer.replace(/</g,'&lt;').replace(/\n/g,'<br>')}
+          </div>
+          ${sourcesHtml}`;
+        thread.appendChild(answerEl);
+      }
+    } catch(e) {
+      typingEl.remove();
+      const errEl = document.createElement("div");
+      errEl.style.cssText = "display:flex;justify-content:flex-start;";
+      errEl.innerHTML = `<div style="background:#7f1d1d;color:#fca5a5;padding:9px 14px;border-radius:14px 14px 14px 2px;font-size:0.85rem;">Network error: ${e.message}</div>`;
+      thread.appendChild(errEl);
+    } finally {
+      input.disabled = false;
+      btn.disabled = false;
+      input.focus();
+      thread.scrollTop = thread.scrollHeight;
+    }
+  }
 
   function renderAnalytics(a) {
     if (!a) return;
@@ -1159,7 +1317,7 @@
     });
   }
 
-  // Enter key
+  // Enter key — URL input and chat input
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("url-input")
       .addEventListener("keydown", e => { if (e.key === "Enter") startJob(); });
