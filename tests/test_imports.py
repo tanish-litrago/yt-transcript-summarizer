@@ -114,3 +114,17 @@ def test_config_ollama_params():
     assert cfg.OLLAMA_HOST.startswith("http")
     assert isinstance(cfg.GEMMA_MODEL, str)
     assert len(cfg.GEMMA_MODEL) > 0
+
+
+def test_config_rag_params():
+    """v2.5 — RAG constants exist and are correctly typed."""
+    cfg = _load_config_with_mock()
+    assert isinstance(cfg.CHROMA_DIR, str),   "CHROMA_DIR must be a str path"
+    assert isinstance(cfg.EMBED_MODEL, str),  "EMBED_MODEL must be a str"
+    assert len(cfg.EMBED_MODEL) > 0,          "EMBED_MODEL must not be empty"
+    assert isinstance(cfg.RAG_CHUNK_SIZE, int)
+    assert cfg.RAG_CHUNK_SIZE > 0
+    assert isinstance(cfg.RAG_CHUNK_OVERLAP, int)
+    assert cfg.RAG_CHUNK_OVERLAP >= 0
+    assert isinstance(cfg.RAG_TOP_K, int)
+    assert cfg.RAG_TOP_K > 0
