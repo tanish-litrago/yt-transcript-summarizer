@@ -23,7 +23,10 @@ langchain-text-splitters>=0.3.0
 chromadb>=0.5.0,<1.0
 
 # Speech-to-text fallback (Whisper — GPU accelerated, kept for uncaptioned videos)
-torch>=2.1.0                  # Required by Whisper only
+# PyTorch CUDA 12.8 build — targets RTX 4060 (Ada Lovelace / CUDA 12.x)
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch>=2.1.0                  # Required by Whisper only — installs CUDA build via above index
+torchaudio>=2.1.0             # Required companion for CUDA torch
 openai-whisper>=20231117
 yt-dlp>=2024.3.10
 
