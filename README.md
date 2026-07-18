@@ -1,14 +1,41 @@
 # YouTube Transcript Summarizer & Note Maker
-### v2.0 — Local LLM-Powered NLP via Gemma 4 (Ollama)
+### v2.5 — Local LLM · RAG Chat-with-Video
 
-> Paste a YouTube URL → get structured Markdown / PDF / DOCX notes in seconds,
-> powered by **Gemma 4 (e4b)** running fully locally on your NVIDIA RTX GPU via Ollama.
+> Paste a YouTube URL → get structured Markdown / PDF / DOCX notes **and chat with the video**,
+> all powered by **Gemma 4 (e4b)** running fully locally on your NVIDIA RTX GPU via Ollama.
+> No cloud APIs. No data leaves your machine.
 
 [![CI](https://github.com/tanish-litrago/yt-transcript-summarizer/actions/workflows/ci.yml/badge.svg)](https://github.com/tanish-litrago/yt-transcript-summarizer/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat-square&logo=python)
 ![Ollama](https://img.shields.io/badge/Ollama-Gemma_4_e4b-black?style=flat-square)
 ![Flask](https://img.shields.io/badge/Flask-3.0-green?style=flat-square&logo=flask)
+![LangChain](https://img.shields.io/badge/LangChain-1.x-teal?style=flat-square)
+![ChromaDB](https://img.shields.io/badge/ChromaDB-0.6-orange?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-purple?style=flat-square)
+
+---
+
+## What's New in v2.5 — RAG Chat-with-Video
+
+| | v2.0 | v2.5 |
+|---|---|---|
+| **Chat tab** | — | ✅ Ask any question about the video |
+| **Retrieval** | — | ChromaDB vector search (top-4 chunks) |
+| **Embeddings** | — | Ollama `nomic-embed-text` (local, no cloud) |
+| **Chunking** | — | LangChain `RecursiveCharacterTextSplitter` |
+| **Index persistence** | — | Cached per `video_id` in `outputs/chroma/` |
+| **Answer grounding** | — | Gemma answers **only** from retrieved transcript excerpts |
+| **Source transparency** | — | Each answer shows collapsible source excerpts |
+
+**How RAG chat works:**
+```
+Your question  →  nomic-embed-text (embed)
+               →  ChromaDB similarity search  →  top-4 transcript chunks
+               →  Grounded prompt to Gemma 4
+               →  Answer + source excerpts shown in Chat tab
+```
+
+The vector store is built automatically when you summarize a video and is reused on every revisit — **no re-embedding cost** when you open a past video from History.
 
 ---
 
@@ -23,22 +50,17 @@
 | **Source files** | `summarizer.py` + `keyword_extractor.py` | Single `gemma_engine.py` |
 | **Dependencies** | `transformers`, `sentencepiece`, `accelerate`, `spacy` | `requests` (talks to Ollama) |
 
-**Also fixed in v2.0:**
-- Ollama bug where `think: false` + `format: json` silently breaks Gemma 4 output — resolved by strong prompting + defensive parsing instead
-- Truncated JSON responses caused by low default `num_predict` / `num_ctx` — now explicitly set to `1024` / `8192`
-- JSON extraction rewritten with brace-counting (handles nested objects correctly) + partial-JSON repair for truncated responses
-- 3-attempt retry logic for both summarization and keyword extraction calls
-- Transcript truncated to 2500 words before Gemma calls to stay within context limits on long videos
-
 ---
 
 ## Features
 
 - **Transcript extraction** via YouTube Transcript API, with OpenAI Whisper (CUDA) as fallback for uncaptioned videos
-- **Local LLM pipeline** — Gemma 4 (e4b) via Ollama handles summarization, keyword extraction, and typed named-entity recognition — no cloud API calls
+- **Local LLM pipeline** — Gemma 4 (e4b) via Ollama handles summarization, keyword extraction, and named-entity recognition — no cloud API calls
+- **RAG Chat-with-Video** — ask natural-language questions, get Gemma-grounded answers with source excerpts shown
 - **Structured Markdown notes** with section summaries, keywords, and entities
 - **Export** to `.md`, `.pdf`, `.docx`
-- **Flask Web UI** with live progress bar, processing history, and an analytics dashboard (Plotly)
+- **Flask Web UI** — Summary · Chat · Analytics · History tabs, live progress bar, dark/light mode
+- **Analytics dashboard** (Plotly) — word frequency, compression ratio, readability, sentiment, speaking pace, entity types
 - **CLI** with batch processing support
 
 ---
@@ -47,18 +69,19 @@
 
 - Python 3.11
 - [Ollama](https://ollama.com/download) installed and running
-- NVIDIA RTX GPU + CUDA 12.x — used by Whisper fallback only; Gemma 4 is served by Ollama independently
-- ~5 GB VRAM free for `gemma4:e4b`
+- NVIDIA RTX GPU + CUDA 12.x — used by Whisper fallback only; Gemma 4 and nomic-embed-text are served by Ollama
+- ~5 GB VRAM free for `gemma4:e4b` + ~1 GB for `nomic-embed-text`
 - 16 GB RAM recommended
 
 ---
 
 ## Setup
 
-**1 — Install Ollama and pull the model**
+**1 — Install Ollama and pull the models**
 ```bash
 ollama serve
 ollama pull gemma4:e4b
+ollama pull nomic-embed-text   # used for RAG embeddings (v2.5)
 ```
 
 **2 — Install Python dependencies**
@@ -94,30 +117,35 @@ python main.py --url "https://www.youtube.com/watch?v=VIDEO_ID"
 
 ```
 yt_summarizer/
-├── app.py                          # Flask Web UI
+├── app.py                          # Flask Web UI (v2.5: + /chat route)
 ├── main.py                         # CLI entry point
-├── config.py                       # Model name, paths, Ollama host
+├── config.py                       # Model name, paths, Ollama host, RAG config
 ├── requirements.txt
 ├── src/
 │   ├── gemma_engine.py             # Gemma 4 (Ollama) — summarization + keywords + entities
+│   ├── rag_engine.py               # v2.5: RAG engine — ChromaDB + LangChain + Ollama embeddings
 │   ├── transcript_fetcher.py       # YouTube Transcript API + Whisper fallback
 │   ├── analyzer.py                 # Analytics: readability, sentiment, word freq, entity types
 │   ├── note_generator.py           # Builds structured Markdown notes
 │   ├── exporter.py                 # MD / PDF / DOCX export
 │   └── video_info.py               # yt-dlp — title, thumbnail, channel, duration
 ├── templates/
-│   └── index.html                  # Web UI (Plotly analytics dashboard)
-├── outputs/                        # Generated notes + history.json
+│   └── index.html                  # Web UI — Summary · Chat · Analytics · History tabs
+├── outputs/
+│   ├── chroma/                     # v2.5: ChromaDB vector stores (one subdir per video_id)
+│   └── history.json
 └── tests/
     ├── test_analyzer.py
     ├── test_config.py
-    └── test_imports.py
+    ├── test_imports.py
+    └── test_rag_engine.py          # v2.5: 3 mocked RAG tests
 ```
 
 ---
 
 ## How It Works
 
+**Summarization pipeline:**
 ```
 YouTube URL
     │
@@ -132,17 +160,52 @@ gemma_engine.py
                                     {"name": "MIT", "type": "Organization"}
     │
     ▼
-analyzer.py        →  word frequency, compression ratio, readability,
-                       sentiment timeline, speaking pace, entity type distribution
-note_generator.py  →  builds structured Markdown
-exporter.py        →  saves .md / .pdf / .docx  →  outputs/
+rag_engine.py          →  chunk transcript → embed (nomic-embed-text) → ChromaDB
+analyzer.py            →  word frequency, compression ratio, readability,
+                           sentiment timeline, speaking pace, entity type distribution
+note_generator.py      →  builds structured Markdown
+exporter.py            →  saves .md / .pdf / .docx  →  outputs/
 ```
+
+**RAG chat pipeline (after summarization):**
+```
+User question
+    │
+    ▼
+nomic-embed-text (via Ollama)  →  question embedding
+    │
+    ▼
+ChromaDB similarity_search()   →  top-4 most relevant transcript chunks
+    │
+    ▼
+Gemma 4 (grounded prompt)      →  answer + source excerpts
+    │
+    ▼
+Chat tab                       →  answer bubble + collapsible source quotes
+```
+
+---
+
+## Versions
+
+| Version | Highlights |
+|---|---|
+| v1.0 | BART summarization + Flask Web UI + CLI |
+| v1.1 | Video info, GPU speed stats, processing history, dark mode |
+| v1.2 | Analytics dashboard (Plotly), unit tests, GitHub Actions CI |
+| v2.0 | Replaced BART + spaCy/TF-IDF with Gemma 4 (e4b) via Ollama; typed entity extraction; smaller dependency footprint |
+| **v2.5** | **RAG Chat-with-Video: ChromaDB + LangChain + Ollama nomic-embed-text; Chat tab; per-video index caching** |
+
+**Planned:**
+- v2.6 — Open Knowledge Graph (OKG) + KG-RAG: D3.js force-directed graph where the knowledge graph structure actively guides retrieval — clicking a node traverses graph edges to pull related chunks → Gemma 4 answers. The graph IS the query interface; KG-RAG is the retrieval engine.
+- v3.0 — Claim extraction + fact-checking against web sources
+- v4.0 — Docker + live demo deployment
 
 ---
 
 ## Analytics Dashboard
 
-The **Analytics tab** in the Web UI shows six charts, all computed locally with no extra model calls:
+The **Analytics tab** shows six charts, all computed locally with no extra model calls:
 
 | Chart | Source |
 |---|---|
@@ -155,26 +218,9 @@ The **Analytics tab** in the Web UI shows six charts, all computed locally with 
 
 ---
 
-## Versions
-
-| Version | Highlights |
-|---|---|
-| v1.0 | BART summarization + Flask Web UI + CLI |
-| v1.1 | Video info, GPU speed stats, processing history, dark mode |
-| v1.2 | Analytics dashboard (Plotly), unit tests, GitHub Actions CI |
-| **v2.0** | **Replaced BART + spaCy/TF-IDF with Gemma 4 (e4b) via Ollama; typed entity extraction; smaller dependency footprint** |
-
-**Planned:**
-- v2.5 — RAG (ChromaDB + LangChain) for chat-with-video Q&A
-- v2.6 — Open Knowledge Graph (OKG) + KG-RAG: D3.js force-directed graph (Outer Wilds Ship Log aesthetic) where the knowledge graph structure actively guides retrieval — clicking a node traverses graph edges to pull related chunks → Gemma 4 answers. The graph IS the query interface, KG-RAG is the backend engine.
-- v3.0 — Claim extraction + fact-checking against web sources
-- v4.0 — Docker + live demo deployment
-
----
-
 ## Tech Stack
 
-Python · Gemma 4 e4b (Ollama) · OpenAI Whisper · Flask · Plotly · fpdf2 · python-docx · yt-dlp · textstat
+Python · Gemma 4 e4b (Ollama) · nomic-embed-text (Ollama) · LangChain · ChromaDB · OpenAI Whisper · Flask · Plotly · fpdf2 · python-docx · yt-dlp · textstat
 
 ---
 
