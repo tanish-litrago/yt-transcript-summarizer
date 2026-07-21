@@ -69,7 +69,7 @@ The vector store is built automatically when you summarize a video and is reused
 
 - Python 3.11
 - [Ollama](https://ollama.com/download) installed and running
-- NVIDIA RTX GPU + CUDA 12.x — used by Whisper fallback only; Gemma 4 and nomic-embed-text are served by Ollama
+- NVIDIA RTX GPU + CUDA 12.8+ — used by Whisper fallback only; Gemma 4 and nomic-embed-text are served by Ollama
 - ~5 GB VRAM free for `gemma4:e4b` + ~1 GB for `nomic-embed-text`
 - 16 GB RAM recommended
 
@@ -86,14 +86,26 @@ ollama pull nomic-embed-text   # used for RAG embeddings (v2.5)
 
 **2 — Install Python dependencies**
 ```bash
+py -3.11 -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # macOS / Linux
 pip install -r requirements.txt
 ```
 
-**3 — (Optional) Whisper fallback requires CUDA PyTorch**
+> **GPU note:** `requirements.txt` includes `--extra-index-url https://download.pytorch.org/whl/cu128`,
+> so `torch` is installed with **CUDA 12.8** support automatically — no manual step needed.
+> After install, verify your GPU is detected:
+> ```bash
+> python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+> # Expected: True   NVIDIA GeForce RTX 4060 ...
+> ```
 
-Only needed if you want audio transcription for videos with no captions:
+**3 — (Optional) Reinstall torch with CUDA if you get CPU-only**
+
+If pip pulled the CPU build (e.g. from a cached install), force the CUDA version:
 ```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+pip uninstall torch torchaudio -y
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
 ```
 
 ---
