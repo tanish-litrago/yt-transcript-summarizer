@@ -11,7 +11,7 @@
 ![Flask](https://img.shields.io/badge/Flask-3.0-green?style=flat-square&logo=flask)
 ![LangChain](https://img.shields.io/badge/LangChain-1.x-teal?style=flat-square)
 ![ChromaDB](https://img.shields.io/badge/ChromaDB-0.6-orange?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-purple?style=flat-square)
+![License](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)
 
 ---
 
@@ -19,7 +19,7 @@
 
 | | v2.0 | v2.5 |
 |---|---|---|
-| **Chat tab** | — | ✅ Ask any question about the video |
+| **Chat tab** | — | Ask any question about the video |
 | **Retrieval** | — | ChromaDB vector search (top-4 chunks) |
 | **Embeddings** | — | Ollama `nomic-embed-text` (local, no cloud) |
 | **Chunking** | — | LangChain `RecursiveCharacterTextSplitter` |
