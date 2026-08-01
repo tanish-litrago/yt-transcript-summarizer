@@ -4,49 +4,87 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>YouTube Transcript Summarizer v2.5</title>
+  <meta name="description" content="Summarize YouTube videos using Gemma 4 AI — get structured notes, keywords, analytics, and chat with your video."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.1/plotly.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #0f172a;
-      --bg2:     #1e293b;
-      --bg3:     #273548;
-      --accent:  #6366f1;
-      --accent2: #818cf8;
-      --green:   #22c55e;
-      --red:     #ef4444;
-      --yellow:  #f59e0b;
-      --text:    #e2e8f0;
-      --text2:   #94a3b8;
-      --border:  #334155;
-      --radius:  12px;
+      /* Core palette — Hades × Darkest Dungeon */
+      --bg:        #0a0a0f;
+      --bg2:       #111118;
+      --bg3:       #18181f;
+      --bg4:       #1f1f28;
+
+      /* Accent — warm forge-gold */
+      --gold:      #c8973a;
+      --gold-dim:  #7a5a20;
+      --gold-glow: rgba(200,151,58,0.18);
+
+      /* Secondary accent — muted rose-crimson */
+      --rose:      #9b4a5e;
+      --rose-dim:  rgba(155,74,94,0.3);
+
+      /* Text */
+      --text:      #f0ede8;
+      --text2:     #8a8070;
+      --text3:     #5a5448;
+
+      /* State colours */
+      --green:     #4a9e6a;
+      --green-dim: rgba(74,158,106,0.2);
+      --red:       #b04040;
+      --red-dim:   rgba(176,64,64,0.2);
+      --amber:     #c8973a;
+
+      /* Borders */
+      --border:    #252520;
+      --border2:   #2e2e26;
+      --border-gold: rgba(200,151,58,0.35);
+
+      /* Radius — sharp, like game UI panels */
+      --r:   4px;
+      --r2:  6px;
+
+      /* Fonts */
+      --font-serif: 'Crimson Pro', 'Georgia', serif;
+      --font-body:  'Inter', 'Segoe UI', system-ui, sans-serif;
     }
 
-    .light {
-      --bg:      #f8fafc;
-      --bg2:     #ffffff;
-      --bg3:     #f1f5f9;
-      --text:    #1e293b;
-      --text2:   #64748b;
-      --border:  #e2e8f0;
-      --accent:  #4f46e5;
-      --accent2: #6366f1;
-    }
-
+    /* ── Base ──────────────────────────────────────────────────────────────── */
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: "Segoe UI", system-ui, sans-serif;
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.6;
       min-height: 100vh;
-      transition: background 0.3s, color 0.3s;
     }
+
+    /* Subtle full-page vignette */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(200,151,58,0.04) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
 
     /* ── Header ────────────────────────────────────────────────────────────── */
     header {
-      background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 60%);
+      background: var(--bg2);
       border-bottom: 1px solid var(--border);
-      padding: 16px 32px;
+      padding: 14px 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -54,544 +92,794 @@
       position: sticky;
       top: 0;
       z-index: 100;
+      /* thin top accent line */
+      box-shadow: inset 0 1px 0 var(--border-gold);
     }
 
-    .light header { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); }
+    .logo { display: flex; align-items: center; gap: 14px; }
 
-    .logo { display: flex; align-items: center; gap: 12px; }
-
-    .logo-icon {
-      width: 40px; height: 40px;
-      background: var(--accent);
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
+    .logo-sigil {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--border-gold);
+      background: var(--bg3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-serif);
       font-size: 18px;
+      color: var(--gold);
+      flex-shrink: 0;
+      /* diamond shape */
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     }
 
-    .logo h1 { font-size: 1.1rem; font-weight: 700; color: white; }
-    .logo p  { font-size: 0.75rem; color: rgba(255,255,255,0.7); }
+    .logo-text h1 {
+      font-family: var(--font-serif);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+    }
+    .logo-text h1 .ver {
+      font-size: 0.65rem;
+      font-family: var(--font-body);
+      font-weight: 400;
+      color: var(--text3);
+      margin-left: 6px;
+      letter-spacing: 0;
+    }
+    .logo-text p {
+      font-size: 0.72rem;
+      color: var(--text2);
+      margin-top: 1px;
+      letter-spacing: 0.03em;
+    }
 
-    .header-right { display: flex; align-items: center; gap: 12px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
 
     .gpu-badge {
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 8px;
-      padding: 6px 12px;
-      font-size: 0.75rem;
-      color: #86efac;
-      display: flex; align-items: center; gap: 6px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      padding: 5px 11px;
+      font-size: 0.72rem;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      letter-spacing: 0.03em;
     }
 
-    .dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
-
-    .theme-btn {
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 8px;
-      padding: 6px 12px;
-      color: white;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition: background 0.2s;
+    .status-pip {
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pip-pulse 2.5s ease-in-out infinite;
+      flex-shrink: 0;
     }
-    .theme-btn:hover { background: rgba(255,255,255,0.2); }
+    @keyframes pip-pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
 
     /* ── Tabs ───────────────────────────────────────────────────────────────── */
     .tabs {
       display: flex;
-      gap: 4px;
-      padding: 20px 32px 0;
-      border-bottom: 1px solid var(--border);
+      gap: 0;
       background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      overflow-x: auto;
     }
 
     .tab {
-      padding: 10px 20px;
-      border-radius: 8px 8px 0 0;
+      padding: 12px 22px;
       cursor: pointer;
-      font-size: 0.88rem;
+      font-family: var(--font-serif);
+      font-size: 0.95rem;
       font-weight: 600;
+      letter-spacing: 0.04em;
       color: var(--text2);
-      border: 1px solid transparent;
-      border-bottom: none;
-      transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+      user-select: none;
+      position: relative;
     }
-
+    .tab:hover { color: var(--text); }
     .tab.active {
-      background: var(--bg);
-      color: var(--accent2);
-      border-color: var(--border);
+      color: var(--gold);
+      border-bottom-color: var(--gold);
     }
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* ── Main ───────────────────────────────────────────────────────────────── */
-    main { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+    /* ── Layout ─────────────────────────────────────────────────────────────── */
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 24px;
+      position: relative;
+      z-index: 1;
+    }
 
-    /* ── Card ───────────────────────────────────────────────────────────────── */
+    /* ── Panel (replaces .card) ─────────────────────────────────────────────── */
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 22px 24px;
+      margin-bottom: 18px;
+      position: relative;
+    }
+
+    /* Corner ornaments */
+    .panel::before,
+    .panel::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-color: var(--gold-dim);
+      border-style: solid;
+    }
+    .panel::before {
+      top: -1px; left: -1px;
+      border-width: 2px 0 0 2px;
+    }
+    .panel::after {
+      bottom: -1px; right: -1px;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* Keep .card working for any inline-style usages */
     .card {
       background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-bottom: 20px;
+      padding: 22px 24px;
+      margin-bottom: 18px;
+      position: relative;
     }
+    .card::before, .card::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-color: var(--gold-dim);
+      border-style: solid;
+    }
+    .card::before { top:-1px; left:-1px; border-width:2px 0 0 2px; }
+    .card::after  { bottom:-1px; right:-1px; border-width:0 2px 2px 0; }
 
-    .card h2 {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--text2);
+    .panel-title, .card h2 {
+      font-family: var(--font-serif);
+      font-size: 0.7rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.14em;
+      color: var(--text2);
       margin-bottom: 16px;
     }
 
-    /* ── Input ──────────────────────────────────────────────────────────────── */
+    /* Section rule — thin gold line under title */
+    .panel-rule {
+      height: 1px;
+      background: linear-gradient(90deg, var(--border-gold) 0%, transparent 100%);
+      margin-bottom: 16px;
+      margin-top: -10px;
+    }
+
+    /* ── Buttons ────────────────────────────────────────────────────────────── */
+    .btn {
+      background: var(--gold);
+      color: #0a0808;
+      border: none;
+      padding: 12px 28px;
+      font-family: var(--font-serif);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+      white-space: nowrap;
+      position: relative;
+    }
+    .btn:hover {
+      background: #dba845;
+      box-shadow: 0 0 18px var(--gold-glow);
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled {
+      background: var(--bg3);
+      color: var(--text3);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-gold);
+      color: var(--gold);
+      padding: 8px 18px;
+      font-family: var(--font-serif);
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-outline:hover {
+      background: var(--gold-glow);
+      color: #dba845;
+    }
+
+    /* ── URL Input ──────────────────────────────────────────────────────────── */
     .url-row { display: flex; gap: 10px; }
 
     .url-input {
       flex: 1;
-      background: var(--bg);
-      border: 2px solid var(--border);
-      border-radius: 10px;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
       padding: 13px 16px;
       color: var(--text);
-      font-size: 0.92rem;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .url-input:focus { border-color: var(--accent); }
-    .url-input::placeholder { color: var(--text2); }
-
-    .btn {
-      background: var(--accent);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      padding: 13px 26px;
-      font-size: 0.92rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      white-space: nowrap;
+    .url-input:focus {
+      border-color: var(--gold-dim);
+      box-shadow: inset 0 0 0 1px var(--gold-dim);
     }
-    .btn:hover   { background: var(--accent2); }
-    .btn:active  { transform: scale(0.97); }
-    .btn:disabled { background: var(--bg3); color: var(--text2); cursor: not-allowed; }
-
-    .btn-outline {
-      background: transparent;
-      border: 2px solid var(--accent);
-      color: var(--accent2);
-      border-radius: 10px;
-      padding: 9px 18px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn-outline:hover { background: var(--accent); color: white; }
+    .url-input::placeholder { color: var(--text3); }
 
     /* ── Formats ────────────────────────────────────────────────────────────── */
     .formats {
       display: flex;
-      gap: 16px;
+      gap: 18px;
       margin-top: 14px;
       flex-wrap: wrap;
       align-items: center;
     }
-
     .fmt-label {
       display: flex; align-items: center; gap: 7px;
-      cursor: pointer; font-size: 0.85rem; color: var(--text2);
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--text2);
     }
-    .fmt-label input { width: 15px; height: 15px; accent-color: var(--accent); }
+    .fmt-label input {
+      width: 14px; height: 14px;
+      accent-color: var(--gold);
+    }
 
     /* ── Progress ───────────────────────────────────────────────────────────── */
     #progress-section { display: none; }
 
-    .progress-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .progress-msg    { font-size: 0.88rem; color: var(--text2); }
-    .progress-pct    { font-size: 0.88rem; font-weight: 700; color: var(--accent2); }
-
-    .progress-bar-bg {
-      background: var(--bg);
-      border-radius: 99px;
-      height: 10px;
-      overflow: hidden;
-      border: 1px solid var(--border);
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
     }
-    .progress-bar-fill {
+    .progress-msg { font-size: 0.85rem; color: var(--text2); }
+    .progress-pct { font-size: 0.85rem; font-weight: 700; color: var(--gold); font-family: var(--font-serif); }
+
+    .progress-track {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      height: 6px;
+      overflow: hidden;
+    }
+    .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      border-radius: 99px;
+      background: linear-gradient(90deg, var(--gold-dim) 0%, var(--gold) 100%);
       transition: width 0.4s ease;
       width: 0%;
     }
 
     /* Steps */
-    .steps { display: flex; justify-content: space-between; margin-top: 18px; position: relative; }
+    .steps {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      position: relative;
+    }
     .steps::before {
-      content: ""; position: absolute;
-      top: 13px; left: 14px; right: 14px;
-      height: 2px; background: var(--border); z-index: 0;
+      content: '';
+      position: absolute;
+      top: 11px; left: 12px; right: 12px;
+      height: 1px;
+      background: var(--border2);
+      z-index: 0;
     }
-    .step { display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 1; flex: 1; }
+    .step {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 6px; z-index: 1; flex: 1;
+    }
     .step-dot {
-      width: 26px; height: 26px; border-radius: 50%;
-      background: var(--bg); border: 2px solid var(--border);
+      width: 24px; height: 24px;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
       display: flex; align-items: center; justify-content: center;
-      font-size: 11px; transition: all 0.3s;
+      font-size: 10px;
+      font-family: var(--font-serif);
+      color: var(--text3);
+      transition: all 0.3s;
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     }
-    .step.active .step-dot { border-color: var(--accent); background: var(--accent); color: white; }
-    .step.done   .step-dot { border-color: var(--green);  background: var(--green);  color: white; }
-    .step-label { font-size: 0.7rem; color: var(--text2); text-align: center; }
-    .step.active .step-label { color: var(--accent2); }
+    .step.active .step-dot {
+      border-color: var(--gold);
+      background: var(--bg3);
+      color: var(--gold);
+      box-shadow: 0 0 10px var(--gold-glow);
+    }
+    .step.done .step-dot {
+      border-color: var(--green);
+      background: var(--green-dim);
+      color: var(--green);
+    }
+    .step-label {
+      font-size: 0.65rem;
+      color: var(--text3);
+      text-align: center;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .step.active .step-label { color: var(--gold); }
     .step.done   .step-label { color: var(--green); }
+
+    /* Status line */
+    .status-line {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 14px;
+    }
+    .status-line-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      animation: pip-pulse 1.5s infinite;
+      flex-shrink: 0;
+    }
+    .status-line-text {
+      font-size: 0.85rem;
+      color: var(--gold);
+      font-family: var(--font-serif);
+      font-style: italic;
+    }
 
     /* ── Video Info Card ────────────────────────────────────────────────────── */
     .video-info-card {
       display: flex;
-      gap: 16px;
+      gap: 18px;
       align-items: flex-start;
-      margin-bottom: 20px;
     }
-
     .video-thumb {
-      width: 180px;
-      min-width: 180px;
-      height: 101px;
-      border-radius: 8px;
+      width: 176px;
+      min-width: 176px;
+      height: 99px;
       object-fit: cover;
-      border: 2px solid var(--border);
+      border: 1px solid var(--border2);
+      flex-shrink: 0;
     }
-
-    .video-meta h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
-    .video-meta p  { font-size: 0.82rem; color: var(--text2); margin-bottom: 4px; }
-
-    .meta-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .video-meta h3 {
+      font-family: var(--font-serif);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: var(--text);
+      line-height: 1.35;
+    }
+    .video-meta p { font-size: 0.8rem; color: var(--text2); margin-bottom: 3px; }
+    .meta-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
     .meta-tag {
       background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 3px 10px;
-      font-size: 0.78rem;
+      border: 1px solid var(--border2);
+      padding: 2px 9px;
+      font-size: 0.72rem;
       color: var(--text2);
+      letter-spacing: 0.03em;
     }
 
-    /* ── Speed Stats ────────────────────────────────────────────────────────── */
+    /* ── Timing Card ────────────────────────────────────────────────────────── */
     .timing-card {
       background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 0;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
       overflow: hidden;
+      position: relative;
     }
+    .timing-card::before { content:''; position:absolute; top:-1px; left:-1px; width:8px; height:8px; border:2px solid var(--gold-dim); border-right:none; border-bottom:none; }
+    .timing-card::after  { content:''; position:absolute; bottom:-1px; right:-1px; width:8px; height:8px; border:2px solid var(--gold-dim); border-left:none; border-top:none; }
 
     .timing-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 20px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 18px 8px;
       border-bottom: 1px solid var(--border);
     }
-
     .timing-header-label {
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.12em;
       color: var(--text2);
     }
-
     .timing-badge {
       background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 2px 9px;
+      border: 1px solid var(--border2);
+      padding: 2px 8px;
       font-size: 0.68rem;
       color: var(--text2);
       font-weight: 500;
     }
-
-    .timing-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-    }
-
+    .timing-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; }
     .timing-item {
       padding: 14px 16px;
       text-align: center;
       position: relative;
     }
-
     .timing-item:not(:last-child)::after {
-      content: '';
-      position: absolute;
-      top: 14px;
-      right: 0;
-      bottom: 14px;
-      width: 1px;
-      background: var(--border);
+      content: ''; position: absolute;
+      top: 14px; right: 0; bottom: 14px;
+      width: 1px; background: var(--border);
     }
-
     .timing-val {
-      font-size: 1.4rem;
+      font-family: var(--font-serif);
+      font-size: 1.6rem;
       font-weight: 700;
       color: var(--text);
       line-height: 1;
-      letter-spacing: -0.02em;
-      display: flex;
-      align-items: baseline;
-      justify-content: center;
-      gap: 1px;
+      display: flex; align-items: baseline; justify-content: center; gap: 2px;
     }
-
-    .timing-val .unit {
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: var(--text2);
-    }
-
-    .timing-val.highlight { color: var(--accent2); }
-
+    .timing-val .unit { font-size: 0.85rem; font-weight: 400; color: var(--text2); }
+    .timing-val.highlight { color: var(--gold); }
     .timing-lbl {
-      font-size: 0.68rem;
-      color: var(--text2);
-      margin-top: 4px;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      font-size: 0.65rem; color: var(--text2); margin-top: 4px;
+      font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;
     }
-
-    .timing-sub {
-      font-size: 0.65rem;
-      color: var(--text2);
-      margin-top: 2px;
-      opacity: 0.7;
-    }
-
+    .timing-sub { font-size: 0.62rem; color: var(--text3); margin-top: 2px; }
     .timing-footer {
       border-top: 1px solid var(--border);
-      padding: 8px 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      padding: 8px 18px;
+      display: flex; align-items: center; gap: 10px;
     }
-
     .timing-bar-track {
-      flex: 1;
-      height: 3px;
-      background: var(--bg3);
-      border-radius: 99px;
-      overflow: hidden;
+      flex: 1; height: 2px; background: var(--bg3); overflow: hidden;
     }
-
     .timing-bar-gpu {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 99px;
-      transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
-      width: 0%;
-      opacity: 0.7;
+      height: 100%; background: var(--gold); transition: width 0.8s ease; width: 0%;
     }
+    .timing-bar-legend { font-size: 0.62rem; color: var(--text3); white-space: nowrap; }
 
-    .timing-bar-legend {
-      font-size: 0.65rem;
-      color: var(--text2);
-      white-space: nowrap;
-      opacity: 0.8;
-    }
-
-    /* ── Stats ──────────────────────────────────────────────────────────────── */
+    /* ── Stats Row ──────────────────────────────────────────────────────────── */
     .stats-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 20px;
+      gap: 10px;
+      margin-bottom: 18px;
     }
-
     .stat-box {
       background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 14px;
+      padding: 16px 12px;
       text-align: center;
       position: relative;
-      overflow: hidden;
-      transition: border-color 0.2s, transform 0.2s;
+      transition: border-color 0.2s;
     }
-
+    .stat-box:hover { border-color: var(--gold-dim); }
+    .stat-box .val {
+      font-family: var(--font-serif);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--gold);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+    .stat-box .lbl {
+      font-size: 0.65rem;
+      color: var(--text2);
+      margin-top: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 500;
+    }
+    /* top accent bar per stat */
     .stat-box::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 2px;
-      border-radius: 99px 99px 0 0;
+      height: 1px;
     }
-
-    .stat-box:nth-child(1)::before { background: #6366f1; }
-    .stat-box:nth-child(2)::before { background: #0ea5e9; }
-    .stat-box:nth-child(3)::before { background: #a855f7; }
-    .stat-box:nth-child(4)::before { background: #f59e0b; }
-
-    .stat-box:hover { border-color: var(--accent); transform: translateY(-2px); }
-
-    .stat-box .stat-icon { font-size: 1.2rem; margin-bottom: 6px; display: block; }
-    .stat-box .val { font-size: 1.6rem; font-weight: 700; color: var(--accent2); line-height: 1; }
-    .stat-box .lbl { font-size: 0.7rem; color: var(--text2); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+    .stat-box:nth-child(1)::before { background: var(--gold); }
+    .stat-box:nth-child(2)::before { background: #5a8fbb; }
+    .stat-box:nth-child(3)::before { background: var(--rose); }
+    .stat-box:nth-child(4)::before { background: var(--green); }
 
     /* ── Keywords ───────────────────────────────────────────────────────────── */
-    .kw-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .kw-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .kw-tag {
-      background: #1e1b4b;
-      border: 1px solid var(--accent);
-      color: var(--accent2);
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-size: 0.8rem;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      padding: 3px 10px;
+      font-size: 0.78rem;
+      letter-spacing: 0.02em;
+      transition: border-color 0.2s, color 0.2s;
     }
+    .kw-tag:hover { border-color: var(--gold-dim); color: var(--gold); cursor: default; }
 
-    /* ── Notes ──────────────────────────────────────────────────────────────── */
-    .notes-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-
+    /* ── Notes Box ──────────────────────────────────────────────────────────── */
+    .notes-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
     .notes-box {
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 18px 22px;
-      max-height: 400px;
+      border-left: 2px solid var(--gold-dim);
+      padding: 16px 20px;
+      max-height: 420px;
       overflow-y: auto;
-      font-size: 0.86rem;
-      line-height: 1.7;
+      font-size: 0.83rem;
+      line-height: 1.75;
       white-space: pre-wrap;
-      color: var(--text);
-      font-family: "Consolas", "Courier New", monospace;
+      color: var(--text2);
+      font-family: 'Consolas', 'Courier New', monospace;
     }
-    .notes-box::-webkit-scrollbar { width: 5px; }
-    .notes-box::-webkit-scrollbar-track { background: var(--bg2); }
-    .notes-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    /* ── Download ───────────────────────────────────────────────────────────── */
-    .download-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-
+    /* ── Download Buttons ───────────────────────────────────────────────────── */
+    .download-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
     .dl-btn {
       display: flex; align-items: center; gap: 8px;
       background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 11px 18px;
-      color: var(--text);
+      border: 1px solid var(--border2);
+      padding: 10px 16px;
+      color: var(--text2);
       text-decoration: none;
-      font-size: 0.85rem;
-      font-weight: 600;
-      transition: all 0.2s;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
     }
-    .dl-btn:hover { border-color: var(--accent); background: #1e1b4b; color: var(--accent2); }
+    .dl-btn:hover { border-color: var(--gold-dim); color: var(--gold); background: var(--bg4); }
 
-    /* ── Copy toast ─────────────────────────────────────────────────────────── */
+    /* ── Toast ──────────────────────────────────────────────────────────────── */
     #copy-toast {
       position: fixed;
-      bottom: 28px;
-      right: 28px;
-      background: var(--green);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 0.88rem;
+      bottom: 24px; right: 24px;
+      background: var(--bg3);
+      border: 1px solid var(--green);
+      color: var(--green);
+      padding: 10px 18px;
+      font-size: 0.82rem;
       font-weight: 600;
       opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.3s;
+      transform: translateY(8px);
+      transition: all 0.25s;
       pointer-events: none;
       z-index: 999;
+      letter-spacing: 0.04em;
     }
     #copy-toast.show { opacity: 1; transform: translateY(0); }
 
     /* ── Error ──────────────────────────────────────────────────────────────── */
     #error-section {
       display: none;
-      background: #2d1515;
+      background: var(--red-dim);
       border: 1px solid var(--red);
-      border-radius: var(--radius);
-      padding: 18px 22px;
-      color: #fca5a5;
+      padding: 14px 18px;
+      color: #e08080;
+      font-size: 0.85rem;
+      margin-bottom: 18px;
+    }
+
+    /* ── Results hidden ─────────────────────────────────────────────────────── */
+    #results-section { display: none; }
+
+    /* ── Chat ──────────────────────────────────────────────────────────────── */
+    .chat-wrap {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .chat-wrap::before { content:''; position:absolute; top:-1px; left:-1px; width:8px; height:8px; border:2px solid var(--gold-dim); border-right:none; border-bottom:none; }
+    .chat-wrap::after  { content:''; position:absolute; bottom:-1px; right:-1px; width:8px; height:8px; border:2px solid var(--gold-dim); border-left:none; border-top:none; }
+
+    .chat-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .chat-header-icon { font-size: 1.2rem; }
+    .chat-header-text h2 {
+      font-family: var(--font-serif);
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text);
+    }
+    #chat-subtitle { font-size: 0.72rem; color: var(--text2); margin: 0; }
+
+    #chat-locked-badge {
+      margin-left: auto;
+      display: none;
+      background: var(--amber);
+      color: #0a0808;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 9px;
+      letter-spacing: 0.06em;
+    }
+
+    #chat-thread {
+      flex: 1;
+      min-height: 320px;
+      max-height: 460px;
+      overflow-y: auto;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #chat-empty {
+      text-align: center;
+      color: var(--text3);
+      margin: auto;
+    }
+    #chat-empty .icon { font-size: 2rem; margin-bottom: 8px; }
+
+    .chat-input-row {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+    #chat-input {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      padding: 8px 13px;
+      color: var(--text);
       font-size: 0.88rem;
-      margin-bottom: 20px;
+      font-family: var(--font-body);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #chat-input:focus { border-color: var(--gold-dim); }
+    #chat-input::placeholder { color: var(--text3); }
+
+    #chat-send-btn {
+      background: var(--gold);
+      color: #0a0808;
+      border: none;
+      padding: 8px 18px;
+      font-family: var(--font-serif);
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #chat-send-btn:hover { background: #dba845; }
+    #chat-send-btn:disabled {
+      background: var(--bg3);
+      color: var(--text3);
+      cursor: not-allowed;
+    }
+
+    /* Chat bubbles */
+    .bubble-user {
+      display: flex; justify-content: flex-end;
+    }
+    .bubble-user > div {
+      background: var(--bg4);
+      border: 1px solid var(--border-gold);
+      border-radius: 0;
+      color: var(--text);
+      padding: 8px 13px;
+      max-width: 75%;
+      font-size: 0.87rem;
+      line-height: 1.5;
+    }
+    .bubble-bot {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+    }
+    .bubble-bot > div {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-left: 2px solid var(--gold-dim);
+      color: var(--text);
+      padding: 9px 13px;
+      max-width: 80%;
+      font-size: 0.87rem;
+      line-height: 1.55;
+    }
+    .bubble-error > div {
+      background: var(--red-dim);
+      border: 1px solid var(--red);
+      color: #e08080;
+      padding: 8px 13px;
+      font-size: 0.85rem;
+    }
+    .bubble-typing > div {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      padding: 8px 13px;
+      font-style: italic;
+      font-size: 0.85rem;
+    }
+
+    /* ── Analytics ──────────────────────────────────────────────────────────── */
+    .analytics-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 18px;
     }
 
     /* ── History ────────────────────────────────────────────────────────────── */
     .history-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 14px;
     }
-
     .history-card {
       background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
       overflow: hidden;
       transition: border-color 0.2s;
+      position: relative;
     }
-    .history-card:hover { border-color: var(--accent); }
-
-    .history-thumb {
-      width: 100%;
-      height: 130px;
-      object-fit: cover;
+    .history-card::before { content:''; position:absolute; top:-1px; left:-1px; width:6px; height:6px; border:1px solid var(--gold-dim); border-right:none; border-bottom:none; z-index:1; }
+    .history-card:hover { border-color: var(--gold-dim); }
+    .history-thumb { width: 100%; height: 126px; object-fit: cover; display: block; }
+    .history-body { padding: 12px 14px; }
+    .history-title {
+      font-family: var(--font-serif);
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      line-height: 1.3;
+      color: var(--text);
     }
-
-    .history-body { padding: 14px; }
-    .history-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
-    .history-meta  { font-size: 0.75rem; color: var(--text2); margin-bottom: 8px; }
-
-    .history-kw {
-      display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px;
-    }
+    .history-meta { font-size: 0.72rem; color: var(--text3); margin-bottom: 7px; }
+    .history-kw { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
     .history-kw span {
       background: var(--bg3);
-      border-radius: 4px;
+      border: 1px solid var(--border);
       padding: 2px 7px;
-      font-size: 0.72rem;
-      color: var(--text2);
+      font-size: 0.68rem;
+      color: var(--text3);
     }
-
     .history-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.75rem;
-      color: var(--text2);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.72rem; color: var(--text3);
     }
-
     .history-speed { color: var(--green); font-weight: 600; }
 
     .empty-history {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--text2);
+      text-align: center; padding: 60px 20px; color: var(--text3);
     }
-    .empty-history .icon { font-size: 3rem; margin-bottom: 12px; }
-
-    /* ── Results hidden ─────────────────────────────────────────────────────── */
-    #results-section { display: none; }
+    .empty-history .icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5; }
 
     /* ── Responsive ─────────────────────────────────────────────────────────── */
     @media (max-width: 640px) {
-      header { flex-direction: column; align-items: flex-start; }
+      header { flex-direction: column; align-items: flex-start; padding: 12px 16px; }
+      main { padding: 20px 14px; }
+      .tabs { padding: 0 12px; }
       .url-row { flex-direction: column; }
       .btn { width: 100%; }
       .video-info-card { flex-direction: column; }
       .video-thumb { width: 100%; height: auto; }
       .timing-grid { grid-template-columns: 1fr; }
       .timing-item:not(:last-child)::after { display: none; }
-      .timing-item:not(:last-child) { border-bottom: 1px solid rgba(55,48,163,0.5); }
+      .timing-item:not(:last-child) { border-bottom: 1px solid var(--border); }
       .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .analytics-grid-2 { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -599,41 +887,42 @@
 
 <header>
   <div class="logo">
-    <div class="logo-icon">▶</div>
-    <div>
-      <h1>YouTube Transcript Summarizer <span style="font-size:0.7rem;opacity:0.7">v2.5</span></h1>
+    <div class="logo-sigil">✦</div>
+    <div class="logo-text">
+      <h1>YouTube Transcript Summarizer <span class="ver">v2.5</span></h1>
       <p>Gemma 4 (Ollama) &nbsp;·&nbsp; CUDA-Accelerated Whisper Fallback</p>
     </div>
   </div>
   <div class="header-right">
     <div class="gpu-badge">
-      <div class="dot"></div>
+      <div class="status-pip"></div>
       {{ device }} &nbsp;·&nbsp; {{ gpu_name }}{% if vram %} ({{ vram }}){% endif %}
     </div>
-    <button class="theme-btn" onclick="toggleTheme()">🌙 Dark</button>
   </div>
 </header>
 
-<div class="tabs" style="background:var(--bg2);">
+<div class="tabs">
   <div class="tab active" onclick="switchTab('summarizer', this)">Summarizer</div>
   <div class="tab" id="tab-btn-chat" onclick="switchTab('chat', this)" style="display:none;">Chat</div>
   <div class="tab" id="tab-btn-analytics" onclick="switchTab('analytics', this)" style="display:none;">Analytics</div>
   <div class="tab" onclick="switchTab('history', this)">History ({{ history|length }})</div>
 </div>
 
+<!-- ── SUMMARIZER TAB ──────────────────────────────────────────────────────── -->
 <div id="tab-summarizer" class="tab-content active">
 <main>
 
-  <div class="card">
-    <h2>Summarize a YouTube Video</h2>
+  <div class="panel">
+    <div class="panel-title">Summon a Video</div>
+    <div class="panel-rule"></div>
     <div class="url-row">
       <input id="url-input" class="url-input" type="text"
              placeholder="https://www.youtube.com/watch?v=..."
              autocomplete="off" spellcheck="false"/>
-      <button class="btn" id="go-btn" onclick="startJob()">Summarize</button>
+      <button class="btn" id="go-btn" onclick="startJob()">Invoke</button>
     </div>
     <div class="formats">
-      <span style="font-size:0.82rem;color:var(--text2);">Export:</span>
+      <span style="font-size:0.78rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;">Export:</span>
       <label class="fmt-label"><input type="checkbox" id="fmt-md"   checked> Markdown</label>
       <label class="fmt-label"><input type="checkbox" id="fmt-pdf"  checked> PDF</label>
       <label class="fmt-label"><input type="checkbox" id="fmt-docx" checked> Word</label>
@@ -644,25 +933,35 @@
     <strong>⚠ Error: </strong><span id="error-msg"></span>
   </div>
 
-  <div class="card" id="progress-section">
-    <h2>Processing</h2>
+  <div class="panel" id="progress-section">
+    <div class="panel-title">Processing</div>
+    <div class="panel-rule"></div>
     <div class="progress-header">
       <span class="progress-msg" id="progress-msg">Starting...</span>
       <span class="progress-pct" id="progress-pct">0%</span>
     </div>
-    <div class="progress-bar-bg">
-      <div class="progress-bar-fill" id="progress-fill"></div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
     </div>
-    <div style="margin-top:14px;display:flex;align-items:center;gap:10px;">
-      <div id="status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pulse 1.5s infinite;flex-shrink:0;"></div>
-      <span id="status-label" style="font-size:0.88rem;color:var(--accent2);font-weight:600;">Starting...</span>
+    <div class="steps">
+      <div class="step" id="step-0"><div class="step-dot">I</div><div class="step-label">Info</div></div>
+      <div class="step" id="step-1"><div class="step-dot">II</div><div class="step-label">Transcript</div></div>
+      <div class="step" id="step-2"><div class="step-dot">III</div><div class="step-label">Summarise</div></div>
+      <div class="step" id="step-3"><div class="step-dot">IV</div><div class="step-label">Keywords</div></div>
+      <div class="step" id="step-4"><div class="step-dot">V</div><div class="step-label">RAG</div></div>
+      <div class="step" id="step-5"><div class="step-dot">VI</div><div class="step-label">Export</div></div>
+    </div>
+    <div class="status-line">
+      <div class="status-line-dot" id="status-dot"></div>
+      <span class="status-line-text" id="status-label">Starting...</span>
     </div>
   </div>
 
   <div id="results-section">
 
-    <div class="card">
-      <h2>Video</h2>
+    <div class="panel">
+      <div class="panel-title">Video</div>
+      <div class="panel-rule"></div>
       <div class="video-info-card">
         <img id="res-thumb" class="video-thumb" src="" alt="thumbnail"/>
         <div class="video-meta">
@@ -722,21 +1021,23 @@
       <div class="stat-box"><div class="val" id="stat-entities">-</div><div class="lbl">Entities</div></div>
     </div>
 
-    <div class="card">
-      <h2>Keywords & Entities</h2>
+    <div class="panel">
+      <div class="panel-title">Keywords &amp; Entities</div>
+      <div class="panel-rule"></div>
       <div class="kw-list" id="kw-list"></div>
     </div>
 
-    <div class="card">
+    <div class="panel">
       <div class="notes-header">
-        <h2 style="margin:0">Generated Notes</h2>
+        <div class="panel-title" style="margin:0">Generated Notes</div>
         <button class="btn-outline" onclick="copyNotes()">Copy Notes</button>
       </div>
       <div class="notes-box" id="notes-box"></div>
     </div>
 
-    <div class="card">
-      <h2>Download Files</h2>
+    <div class="panel">
+      <div class="panel-title">Download Files</div>
+      <div class="panel-rule"></div>
       <div class="download-row" id="download-row"></div>
     </div>
 
@@ -744,46 +1045,36 @@
 </main>
 </div>
 
-<!-- ── CHAT TAB (v2.5) ──────────────────────────────────────────────────────── -->
+<!-- ── CHAT TAB ────────────────────────────────────────────────────────────── -->
 <div id="tab-chat" class="tab-content">
 <main>
-  <div class="card" style="display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;">
-
-    <!-- Chat header -->
-    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
-      <span style="font-size:1.3rem;"></span>
-      <div>
-        <h2 style="margin:0;font-size:1rem;">Chat with Video</h2>
-        <p id="chat-subtitle" style="font-size:0.75rem;color:var(--text2);margin:0;">Ask anything about the video content</p>
+  <div class="chat-wrap">
+    <div class="chat-header">
+      <span class="chat-header-icon">◈</span>
+      <div class="chat-header-text">
+        <h2>Chat with Video</h2>
+        <p id="chat-subtitle">Ask anything about the video content</p>
       </div>
-      <div id="chat-locked-badge" style="margin-left:auto;display:none;background:var(--yellow);color:#000;font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:99px;"> Indexing…</div>
+      <div id="chat-locked-badge">Indexing…</div>
     </div>
 
-    <!-- Message thread -->
-    <div id="chat-thread" style="flex:1;min-height:340px;max-height:480px;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px;">
-      <div id="chat-empty" style="text-align:center;color:var(--text2);margin:auto;">
-        <div style="font-size:2.5rem;margin-bottom:8px;">🎬</div>
-        <p style="font-size:0.9rem;">Ask anything about this video's content.</p>
-        <p style="font-size:0.78rem;margin-top:4px;">Gemma will answer only from the transcript.</p>
+    <div id="chat-thread">
+      <div id="chat-empty" style="text-align:center;color:var(--text3);margin:auto;">
+        <div class="icon" style="font-size:2rem;margin-bottom:8px;opacity:0.4;">◈</div>
+        <p style="font-size:0.88rem;">Ask anything about this video's content.</p>
+        <p style="font-size:0.75rem;margin-top:4px;color:var(--text3);">Gemma will answer only from the transcript.</p>
       </div>
     </div>
 
-    <!-- Input row -->
-    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;">
+    <div class="chat-input-row">
       <input id="chat-input"
              type="text"
              placeholder="Ask a question about the video..."
-             style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-size:0.9rem;outline:none;"
              autocomplete="off" spellcheck="false"
              onkeydown="if(event.key==='Enter')sendChatMessage()"
              disabled />
-      <button id="chat-send-btn"
-              onclick="sendChatMessage()"
-              disabled
-              style="background:var(--accent);color:white;border:none;border-radius:8px;padding:9px 18px;font-weight:600;cursor:pointer;font-size:0.9rem;transition:opacity 0.2s;"
-              >Send</button>
+      <button id="chat-send-btn" onclick="sendChatMessage()" disabled>Send</button>
     </div>
-
   </div>
 </main>
 </div>
@@ -792,51 +1083,51 @@
 <div id="tab-analytics" class="tab-content">
 <main>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+  <div class="analytics-grid-2">
 
     <div class="card" style="margin:0">
       <h2>Compression Analysis</h2>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:0.85rem;color:var(--text2);">Original</span>
-          <span id="an-orig-words" style="font-weight:700;color:var(--text);font-size:1.1rem;">—</span>
+          <span style="font-size:0.83rem;color:var(--text2);">Original</span>
+          <span id="an-orig-words" style="font-weight:700;color:var(--text);font-family:var(--font-serif);font-size:1.05rem;">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:0.85rem;color:var(--text2);">Summary</span>
-          <span id="an-summ-words" style="font-weight:700;color:var(--accent2);font-size:1.1rem;">—</span>
+          <span style="font-size:0.83rem;color:var(--text2);">Summary</span>
+          <span id="an-summ-words" style="font-weight:700;color:var(--gold);font-family:var(--font-serif);font-size:1.05rem;">—</span>
         </div>
-        <div style="background:var(--bg);border-radius:99px;height:8px;overflow:hidden;margin-top:4px;">
-          <div id="an-comp-bar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:99px;width:0%;transition:width 0.8s ease;"></div>
+        <div style="background:var(--bg3);height:4px;overflow:hidden;border:1px solid var(--border);">
+          <div id="an-comp-bar" style="height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold));width:0%;transition:width 0.8s ease;"></div>
         </div>
         <div style="text-align:center;">
-          <span id="an-comp-pct" style="font-size:2rem;font-weight:800;color:var(--green);">—</span>
-          <span style="font-size:0.8rem;color:var(--text2);"> reduction</span>
+          <span id="an-comp-pct" style="font-family:var(--font-serif);font-size:2.2rem;font-weight:700;color:var(--gold);">—</span>
+          <span style="font-size:0.78rem;color:var(--text2);"> reduction</span>
         </div>
       </div>
     </div>
 
     <div class="card" style="margin:0">
-      <h2>Readability & Pace</h2>
+      <h2>Readability &amp; Pace</h2>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
         <div style="display:flex;justify-content:space-between;">
-          <span style="font-size:0.85rem;color:var(--text2);">Reading Level</span>
-          <span id="an-read-level" style="font-weight:700;color:var(--accent2);">—</span>
+          <span style="font-size:0.83rem;color:var(--text2);">Reading Level</span>
+          <span id="an-read-level" style="font-weight:600;color:var(--gold);font-family:var(--font-serif);">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;">
-          <span style="font-size:0.85rem;color:var(--text2);">Flesch Score</span>
-          <span id="an-flesch" style="font-weight:700;color:var(--text);">—</span>
+          <span style="font-size:0.83rem;color:var(--text2);">Flesch Score</span>
+          <span id="an-flesch" style="font-weight:600;color:var(--text);">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;">
-          <span style="font-size:0.85rem;color:var(--text2);">Grade Level</span>
-          <span id="an-grade" style="font-weight:700;color:var(--text);">—</span>
+          <span style="font-size:0.83rem;color:var(--text2);">Grade Level</span>
+          <span id="an-grade" style="font-weight:600;color:var(--text);">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;">
-          <span style="font-size:0.85rem;color:var(--text2);">Speaking Pace</span>
-          <span id="an-pace" style="font-weight:700;color:var(--yellow);">—</span>
+          <span style="font-size:0.83rem;color:var(--text2);">Speaking Pace</span>
+          <span id="an-pace" style="font-weight:600;color:var(--rose);">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;">
-          <span style="font-size:0.85rem;color:var(--text2);">Words/Minute</span>
-          <span id="an-wpm" style="font-weight:700;color:var(--text);">—</span>
+          <span style="font-size:0.83rem;color:var(--text2);">Words/Minute</span>
+          <span id="an-wpm" style="font-weight:600;color:var(--text);">—</span>
         </div>
       </div>
     </div>
@@ -845,26 +1136,28 @@
 
   <div class="card">
     <h2>Top 15 Keywords — Word Frequency</h2>
-    <div id="chart-wordfreq" style="width:100%;height:320px;"></div>
+    <div id="chart-wordfreq" style="width:100%;height:300px;"></div>
   </div>
 
   <div class="card">
     <h2>Sentiment Timeline Across Sections</h2>
-    <div id="chart-sentiment" style="width:100%;height:280px;"></div>
+    <div id="chart-sentiment" style="width:100%;height:260px;"></div>
   </div>
 
   <div class="card">
     <h2>Named Entity Types</h2>
-    <div id="chart-entities" style="width:100%;height:300px;"></div>
+    <div id="chart-entities" style="width:100%;height:280px;"></div>
   </div>
 
 </main>
 </div>
 
+<!-- ── HISTORY TAB ─────────────────────────────────────────────────────────── -->
 <div id="tab-history" class="tab-content">
 <main>
-  <div class="card">
-    <h2>Previously Summarized Videos</h2>
+  <div class="panel">
+    <div class="panel-title">Previously Summarized Videos</div>
+    <div class="panel-rule"></div>
     {% if history %}
     <div class="history-grid">
       {% for item in history %}
@@ -891,43 +1184,35 @@
     </div>
     {% else %}
     <div class="empty-history">
-      <div class="icon">📭</div>
-      <div>No history yet — summarize a video first!</div>
+      <div class="icon">◈</div>
+      <div style="font-family:var(--font-serif);font-size:0.95rem;">No chronicles yet — invoke a video first.</div>
     </div>
     {% endif %}
   </div>
 </main>
 </div>
 
-<div id="copy-toast">✓ Notes copied to clipboard!</div>
+<div id="copy-toast">✓ Notes copied</div>
 
 <script>
-  let pollInterval = null;
-  let isLight = false;
-
-  function toggleTheme() {
-    isLight = !isLight;
-    document.body.classList.toggle("light", isLight);
-    document.querySelector(".theme-btn").textContent = isLight ? "🌙 Dark" : "☀️ Light";
-  }
-
-  let _chartsDrawn = false;
+  let pollInterval  = null;
+  let _chartsDrawn  = false;
+  let _analyticsData = null;
+  let _currentVideoId = null;
 
   function switchTab(name, el) {
-    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    document.getElementById("tab-" + name).classList.add("active");
-    el.classList.add("active");
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    el.classList.add('active');
 
-    if (name === "analytics") {
-      // Container is now visible — draw charts for the first time
+    if (name === 'analytics') {
       if (!_chartsDrawn && _analyticsData) {
         drawCharts(_analyticsData);
         _chartsDrawn = true;
       } else if (_chartsDrawn && window.Plotly) {
-        // Resize in case window was resized since last draw
         setTimeout(() => {
-          ["chart-wordfreq","chart-sentiment","chart-entities"].forEach(id => {
+          ['chart-wordfreq','chart-sentiment','chart-entities'].forEach(id => {
             const el2 = document.getElementById(id);
             if (el2 && el2.data) Plotly.Plots.resize(el2);
           });
@@ -938,64 +1223,82 @@
 
   function getFormats() {
     const f = [];
-    if (document.getElementById("fmt-md").checked)   f.push("md");
-    if (document.getElementById("fmt-pdf").checked)  f.push("pdf");
-    if (document.getElementById("fmt-docx").checked) f.push("docx");
-    return f.length ? f : ["md"];
+    if (document.getElementById('fmt-md').checked)   f.push('md');
+    if (document.getElementById('fmt-pdf').checked)  f.push('pdf');
+    if (document.getElementById('fmt-docx').checked) f.push('docx');
+    return f.length ? f : ['md'];
   }
 
-  function setStep(p, msg) {
-    const label = document.getElementById("status-label");
-    const dot   = document.getElementById("status-dot");
+  function setStep(p) {
+    const label = document.getElementById('status-label');
+    const dot   = document.getElementById('status-dot');
     if (!label) return;
-    if      (p < 15)  { label.textContent = "Fetching video info...";          dot.style.background = "var(--accent)"; }
-    else if (p < 32)  { label.textContent = "Fetching transcript...";          dot.style.background = "var(--accent)"; }
-    else if (p < 75)  { label.textContent = "Summarising on Gemma 4...";       dot.style.background = "#f59e0b"; }
-    else if (p < 88)  { label.textContent = "Extracting keywords...";          dot.style.background = "var(--accent)"; }
-    else if (p < 95)  { label.textContent = "Building RAG index for Chat...";  dot.style.background = "#a855f7"; }
-    else if (p < 100) { label.textContent = "Generating notes & exporting..."; dot.style.background = "var(--accent)"; }
-    else              { label.textContent = "Complete!";                        dot.style.background = "var(--green)";  dot.style.animation = "none"; }
+
+    // Step dot states
+    const thresholds = [15, 32, 75, 88, 95, 100];
+    document.querySelectorAll('.step').forEach((s, i) => {
+      s.classList.remove('active','done');
+      if (p >= thresholds[i]) s.classList.add('done');
+    });
+    // Activate current
+    for (let i = thresholds.length - 1; i >= 0; i--) {
+      if (p < thresholds[i]) {
+        const steps = document.querySelectorAll('.step');
+        if (steps[i]) { steps[i].classList.remove('done'); steps[i].classList.add('active'); }
+        break;
+      }
+    }
+
+    if      (p < 15)  { label.textContent = 'Fetching video info...';          dot.style.background = 'var(--gold)'; }
+    else if (p < 32)  { label.textContent = 'Fetching transcript...';          dot.style.background = 'var(--gold)'; }
+    else if (p < 75)  { label.textContent = 'Summarising on Gemma 4...';       dot.style.background = 'var(--rose)'; }
+    else if (p < 88)  { label.textContent = 'Extracting keywords...';          dot.style.background = 'var(--gold)'; }
+    else if (p < 95)  { label.textContent = 'Building RAG index for Chat...';  dot.style.background = '#5a8fbb'; }
+    else if (p < 100) { label.textContent = 'Generating notes & exporting...'; dot.style.background = 'var(--gold)'; }
+    else              { label.textContent = 'Complete.'; dot.style.background = 'var(--green)'; dot.style.animation = 'none'; }
   }
 
   async function startJob() {
-    const url = document.getElementById("url-input").value.trim();
-    if (!url) { alert("Please paste a YouTube URL!"); return; }
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) { alert('Please paste a YouTube URL!'); return; }
 
-    // Reset UI
-    document.getElementById("error-section").style.display    = "none";
-    document.getElementById("results-section").style.display  = "none";
-    document.getElementById("progress-section").style.display = "block";
-    document.getElementById("go-btn").disabled = true;
-    document.getElementById("progress-fill").style.width = "0%";
-    document.getElementById("progress-pct").textContent  = "0%";
-    document.getElementById("progress-msg").textContent  = "Starting...";
-    const lbl = document.getElementById("status-label");
-    const dot = document.getElementById("status-dot");
-    if (lbl) lbl.textContent = "Starting...";
-    if (dot) { dot.style.background = "var(--accent)"; dot.style.animation = "pulse 1.5s infinite"; }
+    document.getElementById('error-section').style.display    = 'none';
+    document.getElementById('results-section').style.display  = 'none';
+    document.getElementById('progress-section').style.display = 'block';
+    document.getElementById('go-btn').disabled = true;
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('progress-pct').textContent  = '0%';
+    document.getElementById('progress-msg').textContent  = 'Starting...';
 
-    // Reset analytics + chat state for the new run
-    _chartsDrawn  = false;
+    const lbl = document.getElementById('status-label');
+    const dot = document.getElementById('status-dot');
+    if (lbl) lbl.textContent = 'Starting...';
+    if (dot) { dot.style.background = 'var(--gold)'; dot.style.animation = 'pip-pulse 1.5s infinite'; }
+
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active','done'));
+
+    _chartsDrawn = false;
     _analyticsData = null;
     _currentVideoId = null;
-    const tabBtn = document.getElementById("tab-btn-analytics");
-    if (tabBtn) tabBtn.style.display = "none";
-    const chatBtn = document.getElementById("tab-btn-chat");
-    if (chatBtn) chatBtn.style.display = "none";
-    // Reset chat UI
-    document.getElementById("chat-thread").innerHTML = `
-      <div id="chat-empty" style="text-align:center;color:var(--text2);margin:auto;">
-        <div style="font-size:2.5rem;margin-bottom:8px;">🎬</div>
-        <p style="font-size:0.9rem;">Ask anything about this video's content.</p>
-        <p style="font-size:0.78rem;margin-top:4px;">Gemma will answer only from the transcript.</p>
-      </div>`;
-    document.getElementById("chat-input").disabled = true;
-    document.getElementById("chat-send-btn").disabled = true;
-    document.getElementById("chat-locked-badge").style.display = "none";
 
-    const resp    = await fetch("/summarize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const tabBtn = document.getElementById('tab-btn-analytics');
+    if (tabBtn) tabBtn.style.display = 'none';
+    const chatBtn = document.getElementById('tab-btn-chat');
+    if (chatBtn) chatBtn.style.display = 'none';
+
+    document.getElementById('chat-thread').innerHTML = `
+      <div id="chat-empty" style="text-align:center;color:var(--text3);margin:auto;">
+        <div style="font-size:2rem;margin-bottom:8px;opacity:0.4;">◈</div>
+        <p style="font-size:0.88rem;">Ask anything about this video's content.</p>
+        <p style="font-size:0.75rem;margin-top:4px;color:var(--text3);">Gemma will answer only from the transcript.</p>
+      </div>`;
+    document.getElementById('chat-input').disabled = true;
+    document.getElementById('chat-send-btn').disabled = true;
+    document.getElementById('chat-locked-badge').style.display = 'none';
+
+    const resp    = await fetch('/summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, formats: getFormats() }),
     });
     const { job_id, error } = await resp.json();
@@ -1003,37 +1306,35 @@
 
     pollInterval = setInterval(async () => {
       const s = await fetch(`/status/${job_id}`).then(r => r.json());
-      document.getElementById("progress-fill").style.width = s.progress + "%";
-      document.getElementById("progress-pct").textContent  = s.progress + "%";
-      document.getElementById("progress-msg").textContent  = s.message;
+      document.getElementById('progress-fill').style.width = s.progress + '%';
+      document.getElementById('progress-pct').textContent  = s.progress + '%';
+      document.getElementById('progress-msg').textContent  = s.message;
       setStep(s.progress);
-      if (s.status === "done")  { clearInterval(pollInterval); showResults(s.result); }
-      if (s.status === "error") { clearInterval(pollInterval); showError(s.error); }
+      if (s.status === 'done')  { clearInterval(pollInterval); showResults(s.result); }
+      if (s.status === 'error') { clearInterval(pollInterval); showError(s.error); }
     }, 800);
   }
 
   function showError(msg) {
-    document.getElementById("progress-section").style.display = "none";
-    document.getElementById("go-btn").disabled = false;
-    document.getElementById("error-section").style.display = "block";
-    document.getElementById("error-msg").textContent = msg;
+    document.getElementById('progress-section').style.display = 'none';
+    document.getElementById('go-btn').disabled = false;
+    document.getElementById('error-section').style.display = 'block';
+    document.getElementById('error-msg').textContent = msg;
   }
 
   function showResults(r) {
-    document.getElementById("progress-section").style.display = "none";
-    document.getElementById("go-btn").disabled = false;
-    document.getElementById("results-section").style.display  = "block";
+    document.getElementById('progress-section').style.display = 'none';
+    document.getElementById('go-btn').disabled = false;
+    document.getElementById('results-section').style.display  = 'block';
 
-    // Video info
-    document.getElementById("res-thumb").src      = r.thumbnail;
-    document.getElementById("res-title").textContent   = r.title;
-    document.getElementById("res-channel").textContent = r.channel;
-    document.getElementById("res-duration").textContent = r.duration;
-    document.getElementById("res-views").textContent    = r.view_count;
-    document.getElementById("res-lang").textContent     = "Lang: " + r.language;
-    document.getElementById("res-source").textContent   = r.source === "youtube_api" ? "YouTube API" : "Whisper";
+    document.getElementById('res-thumb').src      = r.thumbnail;
+    document.getElementById('res-title').textContent   = r.title;
+    document.getElementById('res-channel').textContent = r.channel;
+    document.getElementById('res-duration').textContent = r.duration;
+    document.getElementById('res-views').textContent    = r.view_count;
+    document.getElementById('res-lang').textContent     = 'Lang: ' + r.language;
+    document.getElementById('res-source').textContent   = r.source === 'youtube_api' ? 'YouTube API' : 'Whisper';
 
-    // Speed — timing card
     const gpuTime = parseFloat(r.gpu_time)   || 0;
     const totTime = parseFloat(r.total_time) || 0;
     const trTime  = r.fetch_time !== undefined ? parseFloat(r.fetch_time) : null;
@@ -1056,99 +1357,87 @@
     setTimingItem('spd-transcript-num', 'spd-transcript-unit', 'spd-transcript-sub', trTime,  trTime !== null ? (r.source === 'youtube_api' ? 'YouTube API' : 'Whisper GPU') : '');
     setTimingItem('spd-total-num',      'spd-total-unit',      'spd-total-sub',      totTime, 'End-to-end pipeline');
 
-    // GPU share bar
     const gpuPct = totTime > 0 ? Math.round((gpuTime / totTime) * 100) : 0;
     document.getElementById('timing-bar-fill').style.width = gpuPct + '%';
     document.getElementById('timing-bar-pct').textContent  = gpuPct + '%';
     document.getElementById('timing-bar-label').textContent = 'GPU inference share';
     document.getElementById('timing-device-badge').textContent = (r.device || 'CUDA') + ' · GPU';
 
-    // Stats
-    document.getElementById("stat-words").textContent    = r.word_count.toLocaleString();
-    document.getElementById("stat-chunks").textContent   = r.num_chunks;
-    document.getElementById("stat-kw").textContent       = r.keywords.length;
-    document.getElementById("stat-entities").textContent = r.entities.length;
+    document.getElementById('stat-words').textContent    = r.word_count.toLocaleString();
+    document.getElementById('stat-chunks').textContent   = r.num_chunks;
+    document.getElementById('stat-kw').textContent       = r.keywords.length;
+    document.getElementById('stat-entities').textContent = r.entities.length;
 
-    // Keywords
-    document.getElementById("kw-list").innerHTML =
-      r.keywords.map(k => `<span class="kw-tag">${k}</span>`).join("");
+    document.getElementById('kw-list').innerHTML =
+      r.keywords.map(k => `<span class="kw-tag">${k}</span>`).join('');
 
-    // Notes
-    document.getElementById("notes-box").textContent = r.notes_md;
+    document.getElementById('notes-box').textContent = r.notes_md;
 
-    // Downloads
-    const icons  = { md:"📄", pdf:"🔴", docx:"📘" };
-    const labels = { md:"Markdown", pdf:"PDF", docx:"Word DOCX" };
-    document.getElementById("download-row").innerHTML =
+    const icons  = { md:'📄', pdf:'🔴', docx:'📘' };
+    const labels = { md:'Markdown', pdf:'PDF', docx:'Word DOCX' };
+    document.getElementById('download-row').innerHTML =
       Object.entries(r.paths).map(([fmt, path]) => {
-        const filename = path.split(/[\\/]/).pop();
+        const filename = path.split(/[\\\/]/).pop();
         return `<a class="dl-btn" href="/download/${filename}" download>
-                  <span>${icons[fmt]}</span> Download ${labels[fmt]}
+                  <span>${icons[fmt]}</span> ${labels[fmt]}
                 </a>`;
-      }).join("");
+      }).join('');
 
-    document.getElementById("results-section").scrollIntoView({ behavior:"smooth" });
+    document.getElementById('results-section').scrollIntoView({ behavior:'smooth' });
 
     if (r.analytics) {
-      const tabBtn = document.getElementById("tab-btn-analytics");
-      if (tabBtn) tabBtn.style.display = "";
+      const tabBtn = document.getElementById('tab-btn-analytics');
+      if (tabBtn) tabBtn.style.display = '';
       renderAnalytics(r.analytics);
     }
 
-    // v2.5: unlock Chat tab if RAG index was built successfully
     _currentVideoId = r.video_id || null;
-    const chatBtn = document.getElementById("tab-btn-chat");
+    const chatBtn = document.getElementById('tab-btn-chat');
     if (chatBtn) {
-      chatBtn.style.display = "";
+      chatBtn.style.display = '';
       if (r.rag_ready) {
-        document.getElementById("chat-input").disabled = false;
-        document.getElementById("chat-send-btn").disabled = false;
-        document.getElementById("chat-locked-badge").style.display = "none";
-        document.getElementById("chat-subtitle").textContent = "Ask anything — Gemma answers from the transcript";
+        document.getElementById('chat-input').disabled = false;
+        document.getElementById('chat-send-btn').disabled = false;
+        document.getElementById('chat-locked-badge').style.display = 'none';
+        document.getElementById('chat-subtitle').textContent = 'Ask anything — Gemma answers from the transcript';
       } else {
-        document.getElementById("chat-locked-badge").style.display = "";
-        document.getElementById("chat-subtitle").textContent = "RAG index unavailable — check console for errors";
+        document.getElementById('chat-locked-badge').style.display = '';
+        document.getElementById('chat-subtitle').textContent = 'RAG index unavailable — check console for errors';
       }
     }
   }
 
-  let _analyticsData = null;
-  let _currentVideoId = null;
-
   async function sendChatMessage() {
     if (!_currentVideoId) return;
-    const input = document.getElementById("chat-input");
-    const btn   = document.getElementById("chat-send-btn");
+    const input    = document.getElementById('chat-input');
+    const btn      = document.getElementById('chat-send-btn');
     const question = input.value.trim();
     if (!question) return;
 
-    // Hide empty state
-    const empty = document.getElementById("chat-empty");
+    const empty = document.getElementById('chat-empty');
     if (empty) empty.remove();
 
-    const thread = document.getElementById("chat-thread");
+    const thread = document.getElementById('chat-thread');
 
-    // Append user bubble
-    const userBubble = document.createElement("div");
-    userBubble.style.cssText = "display:flex;justify-content:flex-end;";
-    userBubble.innerHTML = `<div style="background:var(--accent);color:white;padding:9px 14px;border-radius:14px 14px 2px 14px;max-width:75%;font-size:0.88rem;line-height:1.45;">${question.replace(/</g,'&lt;')}</div>`;
+    const userBubble = document.createElement('div');
+    userBubble.className = 'bubble-user';
+    userBubble.innerHTML = `<div>${question.replace(/</g,'&lt;')}</div>`;
     thread.appendChild(userBubble);
 
-    // Append typing indicator
-    const typingEl = document.createElement("div");
-    typingEl.style.cssText = "display:flex;justify-content:flex-start;";
-    typingEl.innerHTML = `<div style="background:var(--bg3);color:var(--text2);padding:9px 14px;border-radius:14px 14px 14px 2px;font-size:0.85rem;">Thinking…</div>`;
+    const typingEl = document.createElement('div');
+    typingEl.className = 'bubble-typing';
+    typingEl.innerHTML = `<div>Thinking…</div>`;
     thread.appendChild(typingEl);
     thread.scrollTop = thread.scrollHeight;
 
-    input.value = "";
+    input.value = '';
     input.disabled = true;
-    btn.disabled = true;
+    btn.disabled   = true;
 
     try {
-      const resp = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const resp = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ video_id: _currentVideoId, question }),
       });
       const data = await resp.json();
@@ -1156,42 +1445,39 @@
       typingEl.remove();
 
       if (data.error) {
-        const errEl = document.createElement("div");
-        errEl.style.cssText = "display:flex;justify-content:flex-start;";
-        errEl.innerHTML = `<div style="background:#7f1d1d;color:#fca5a5;padding:9px 14px;border-radius:14px 14px 14px 2px;font-size:0.85rem;max-width:80%;">${data.error}</div>`;
+        const errEl = document.createElement('div');
+        errEl.className = 'bubble-error';
+        errEl.innerHTML = `<div>${data.error}</div>`;
         thread.appendChild(errEl);
       } else {
-        // Answer bubble
-        const answerEl = document.createElement("div");
-        answerEl.style.cssText = "display:flex;flex-direction:column;align-items:flex-start;gap:6px;";
+        const answerEl = document.createElement('div');
+        answerEl.className = 'bubble-bot';
 
-        let sourcesHtml = "";
+        let sourcesHtml = '';
         if (data.sources && data.sources.length) {
-          const items = data.sources.map((s,i) =>
-            `<li style="margin-bottom:4px;"><span style="color:var(--text2);font-size:0.78rem;">${(s+'...').replace(/</g,'&lt;')}</span></li>`
-          ).join("");
+          const items = data.sources.map(s =>
+            `<li style="margin-bottom:4px;"><span style="color:var(--text3);font-size:0.76rem;">${(s+'...').replace(/</g,'&lt;')}</span></li>`
+          ).join('');
           sourcesHtml = `<details style="margin-top:4px;">
-            <summary style="font-size:0.75rem;color:var(--accent2);cursor:pointer;list-style:none;">📎 ${data.sources.length} source excerpt${data.sources.length>1?'s':''}</summary>
+            <summary style="font-size:0.73rem;color:var(--gold-dim);cursor:pointer;list-style:none;letter-spacing:0.04em;">◈ ${data.sources.length} source excerpt${data.sources.length>1?'s':''}</summary>
             <ul style="margin:6px 0 0 12px;padding:0;">${items}</ul>
           </details>`;
         }
 
         answerEl.innerHTML = `
-          <div style="background:var(--bg3);color:var(--text);padding:10px 14px;border-radius:14px 14px 14px 2px;max-width:80%;font-size:0.88rem;line-height:1.5;">
-            ${data.answer.replace(/</g,'&lt;').replace(/\n/g,'<br>')}
-          </div>
+          <div>${data.answer.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
           ${sourcesHtml}`;
         thread.appendChild(answerEl);
       }
     } catch(e) {
       typingEl.remove();
-      const errEl = document.createElement("div");
-      errEl.style.cssText = "display:flex;justify-content:flex-start;";
-      errEl.innerHTML = `<div style="background:#7f1d1d;color:#fca5a5;padding:9px 14px;border-radius:14px 14px 14px 2px;font-size:0.85rem;">Network error: ${e.message}</div>`;
+      const errEl = document.createElement('div');
+      errEl.className = 'bubble-error';
+      errEl.innerHTML = `<div>Network error: ${e.message}</div>`;
       thread.appendChild(errEl);
     } finally {
       input.disabled = false;
-      btn.disabled = false;
+      btn.disabled   = false;
       input.focus();
       thread.scrollTop = thread.scrollHeight;
     }
@@ -1199,109 +1485,102 @@
 
   function renderAnalytics(a) {
     if (!a) return;
-
-    // Store data and fill in the text stats immediately
     _analyticsData = a;
 
     const c = a.compression;
-    document.getElementById("an-orig-words").textContent = c.original_words.toLocaleString() + " words";
-    document.getElementById("an-summ-words").textContent = c.summary_words.toLocaleString() + " words";
-    document.getElementById("an-comp-pct").textContent   = c.compression_pct + "%";
-    document.getElementById("an-comp-bar").style.width   = c.compression_pct + "%";
+    document.getElementById('an-orig-words').textContent = c.original_words.toLocaleString() + ' words';
+    document.getElementById('an-summ-words').textContent = c.summary_words.toLocaleString() + ' words';
+    document.getElementById('an-comp-pct').textContent   = c.compression_pct + '%';
+    document.getElementById('an-comp-bar').style.width   = c.compression_pct + '%';
 
-    const r = a.readability;
-    document.getElementById("an-read-level").textContent = r.reading_level;
-    document.getElementById("an-flesch").textContent     = r.flesch_reading_ease + " / 100";
-    document.getElementById("an-grade").textContent      = "Grade " + r.flesch_kincaid_grade;
+    const rd = a.readability;
+    document.getElementById('an-read-level').textContent = rd.reading_level;
+    document.getElementById('an-flesch').textContent     = rd.flesch_reading_ease + ' / 100';
+    document.getElementById('an-grade').textContent      = 'Grade ' + rd.flesch_kincaid_grade;
 
     const p = a.pace;
-    document.getElementById("an-pace").textContent = p.pace;
-    document.getElementById("an-wpm").textContent  = p.wpm > 0 ? p.wpm + " wpm" : "N/A";
-
-    // Charts are drawn only when the tab becomes visible (see switchTab)
+    document.getElementById('an-pace').textContent = p.pace;
+    document.getElementById('an-wpm').textContent  = p.wpm > 0 ? p.wpm + ' wpm' : 'N/A';
   }
 
   function drawCharts(a) {
     if (!a || !window.Plotly) return;
 
-    const isDark = !document.body.classList.contains("light");
-    const bg     = isDark ? "#1e293b" : "#ffffff";
-    const font   = isDark ? "#e2e8f0" : "#1e293b";
-    const grid   = isDark ? "#334155" : "#e2e8f0";
+    const bg   = '#111118';
+    const font = '#8a8070';
+    const grid = '#252520';
 
     const base = {
       paper_bgcolor: bg,
       plot_bgcolor : bg,
-      font         : { color: font, family: "Segoe UI, system-ui, sans-serif", size: 11 },
+      font         : { color: font, family: "'Inter', 'Segoe UI', sans-serif", size: 11 },
       margin       : { t: 20, b: 50, l: 50, r: 20, pad: 4 },
       showlegend   : false,
     };
 
-    // ── Word Frequency ────────────────────────────────────────────────────
+    // Word Frequency
     const wf = a.word_freq;
-    Plotly.newPlot("chart-wordfreq", [{
-      type         : "bar",
+    // Gold → rose gradient across bars
+    const barColors = wf.map((_, i) => {
+      const t = i / Math.max(wf.length - 1, 1);
+      const r = Math.round(200 - t * 45);
+      const g = Math.round(151 - t * 101);
+      const b = Math.round(58  + t * 36);
+      return `rgb(${r},${g},${b})`;
+    });
+    Plotly.newPlot('chart-wordfreq', [{
+      type         : 'bar',
       x            : wf.map(d => d.word),
       y            : wf.map(d => d.count),
-      marker       : { color: wf.map((_, i) => `hsl(${240 + i * 8}, 70%, ${isDark ? 65 : 50}%)`) },
-      hovertemplate: "<b>%{x}</b><br>Count: %{y}<extra></extra>",
+      marker       : { color: barColors },
+      hovertemplate: '<b>%{x}</b><br>Count: %{y}<extra></extra>',
     }], {
       ...base,
-      xaxis: { gridcolor: grid, tickfont: { size: 10 }, tickangle: -30 },
-      yaxis: {
-        gridcolor: grid,
-        title    : { text: "Frequency", font: { size: 10 } },
-        tickformat: "d",
-        rangemode : "tozero",
-      },
+      xaxis: { gridcolor: grid, tickfont: { size: 10 }, tickangle: -30, linecolor: grid },
+      yaxis: { gridcolor: grid, title: { text: 'Frequency', font: { size: 10 } }, tickformat: 'd', rangemode: 'tozero', linecolor: grid },
     }, { responsive: true, displayModeBar: false });
 
-    // ── Sentiment Timeline ────────────────────────────────────────────────
+    // Sentiment
     const sent = a.sentiment;
     const sentColors = sent.map(s =>
-      s.label === "Positive" ? "#22c55e" : s.label === "Negative" ? "#ef4444" : "#f59e0b"
+      s.label === 'Positive' ? '#4a9e6a' : s.label === 'Negative' ? '#b04040' : '#c8973a'
     );
-    Plotly.newPlot("chart-sentiment", [
+    Plotly.newPlot('chart-sentiment', [
       {
-        type         : "scatter",
-        mode         : "lines+markers",
+        type         : 'scatter',
+        mode         : 'lines+markers',
         x            : sent.map(s => s.section),
         y            : sent.map(s => s.score),
-        line         : { color: "#6366f1", width: 2.5, shape: "spline" },
-        marker       : { color: sentColors, size: 9, line: { color: "#1e293b", width: 1.5 } },
-        fill         : "tozeroy",
-        fillcolor    : isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.08)",
-        hovertemplate: "<b>%{x}</b><br>Score: %{y}<extra></extra>",
+        line         : { color: '#c8973a', width: 2, shape: 'spline' },
+        marker       : { color: sentColors, size: 8, line: { color: '#0a0a0f', width: 1.5 } },
+        fill         : 'tozeroy',
+        fillcolor    : 'rgba(200,151,58,0.07)',
+        hovertemplate: '<b>%{x}</b><br>Score: %{y}<extra></extra>',
       },
       {
-        type: "scatter", mode: "lines",
+        type: 'scatter', mode: 'lines',
         x: [sent[0]?.section, sent[sent.length - 1]?.section],
         y: [0, 0],
-        line: { color: grid, width: 1, dash: "dot" },
-        hoverinfo: "skip",
+        line: { color: grid, width: 1, dash: 'dot' },
+        hoverinfo: 'skip',
       }
     ], {
       ...base,
-      xaxis: { gridcolor: grid, tickfont: { size: 9 } },
-      yaxis: {
-        gridcolor: grid,
-        zeroline : false,
-        title    : { text: "Sentiment Score", font: { size: 10 } },
-        tickformat: ".1f",
-      },
+      xaxis: { gridcolor: grid, tickfont: { size: 9 }, linecolor: grid },
+      yaxis: { gridcolor: grid, zeroline: false, title: { text: 'Sentiment Score', font: { size: 10 } }, tickformat: '.1f', linecolor: grid },
     }, { responsive: true, displayModeBar: false });
 
-    // ── Entity Types Pie ──────────────────────────────────────────────────
+    // Entity Types
     const et = a.entity_types;
-    Plotly.newPlot("chart-entities", [{
-      type     : "pie",
+    Plotly.newPlot('chart-entities', [{
+      type     : 'pie',
       labels   : et.map(e => e.type),
       values   : et.map(e => e.count),
       hole     : 0.45,
-      marker   : { colors: ["#6366f1","#22c55e","#f59e0b","#ef4444","#3b82f6","#a855f7","#14b8a6","#f97316"] },
-      textinfo : "label+percent",
-      textfont : { size: 11, color: font },
-      hovertemplate: "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
+      marker   : { colors: ['#c8973a','#4a9e6a','#9b4a5e','#5a8fbb','#7a6a4a','#8b6a40','#4a7a6a','#6a4a7a'] },
+      textinfo : 'label+percent',
+      textfont : { size: 11, color: '#f0ede8' },
+      hovertemplate: '<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>',
     }], {
       ...base,
       margin: { t: 20, b: 20, l: 20, r: 20 },
@@ -1309,18 +1588,17 @@
   }
 
   function copyNotes() {
-    const text = document.getElementById("notes-box").textContent;
+    const text = document.getElementById('notes-box').textContent;
     navigator.clipboard.writeText(text).then(() => {
-      const toast = document.getElementById("copy-toast");
-      toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 2500);
+      const toast = document.getElementById('copy-toast');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
     });
   }
 
-  // Enter key — URL input and chat input
-  document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("url-input")
-      .addEventListener("keydown", e => { if (e.key === "Enter") startJob(); });
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('url-input')
+      .addEventListener('keydown', e => { if (e.key === 'Enter') startJob(); });
   });
 </script>
 </body>
