@@ -44,3 +44,13 @@ RAG_CHUNK_OVERLAP = 50    # character overlap between adjacent chunks
 RAG_TOP_K         = 4     # chunks retrieved per user question
 
 os.makedirs(CHROMA_DIR, exist_ok=True)
+
+# ── Knowledge Graph / KG-RAG (v2.6) ──────────────────────────────────────────
+# KG JSON cached per video_id in outputs/kg/.
+# Edges below KG_CONFIDENCE_THRESHOLD are stored but rendered dimmed/dashed.
+# KG_MAX_NODES: nodes shown on initial graph render; user can expand to all.
+KG_DIR                  = os.path.join(OUTPUT_DIR, "kg")
+KG_CONFIDENCE_THRESHOLD = 0.7   # edges below this are "weak links" (dimmed)
+KG_MAX_NODES            = 30    # nodes shown before "Expand All"
+
+os.makedirs(KG_DIR, exist_ok=True)
