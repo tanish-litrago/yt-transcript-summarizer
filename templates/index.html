@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>YouTube Transcript Summarizer v2.5</title>
+  <title>YouTube Transcript Summarizer v2.6</title>
   <meta name="description" content="Summarize YouTube videos using Gemma 4 AI — get structured notes, keywords, analytics, and chat with your video."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.1/plotly.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -905,6 +906,7 @@
   <div class="tab active" onclick="switchTab('summarizer', this)">Summarizer</div>
   <div class="tab" id="tab-btn-chat" onclick="switchTab('chat', this)" style="display:none;">Chat</div>
   <div class="tab" id="tab-btn-analytics" onclick="switchTab('analytics', this)" style="display:none;">Analytics</div>
+  <div class="tab" id="tab-btn-kg" onclick="switchTab('kg', this)" style="display:none;">Graph</div>
   <div class="tab" onclick="switchTab('history', this)">History ({{ history|length }})</div>
 </div>
 
@@ -1192,13 +1194,82 @@
 </main>
 </div>
 
+<!-- ── KNOWLEDGE GRAPH TAB ───────────────────────────────────────────────────── -->
+<div id="tab-kg" class="tab-content">
+<main>
+
+  <div class="panel" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div class="panel-title" style="margin:0 0 2px;">Knowledge Graph</div>
+        <p style="font-size:0.78rem;color:var(--text2);">Click a node to ask what the video says about it. Click an edge to ask how two concepts relate.</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:0.78rem;color:var(--text2);display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="kg-show-weak" onchange="renderGraph()" style="accent-color:var(--gold);"> Show weak links
+        </label>
+        <button class="btn-outline" onclick="resetGraphZoom()" style="padding:5px 12px;font-size:0.8rem;">Reset View</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:14px;">
+
+    <!-- Graph canvas -->
+    <div class="panel" style="padding:0;overflow:hidden;min-height:500px;position:relative;">
+      <svg id="kg-svg" style="width:100%;height:500px;background:var(--bg);"></svg>
+      <div id="kg-empty" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);pointer-events:none;">
+        <div style="font-size:2rem;margin-bottom:8px;opacity:0.3;">◈</div>
+        <div style="font-size:0.85rem;">Graph will appear after summarizing a video</div>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+
+      <div class="panel" style="padding:16px 18px;">
+        <div class="panel-title" style="margin-bottom:10px;">Ask the Graph</div>
+        <textarea id="kg-question" rows="3"
+          placeholder="Ask something about the video..."
+          style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;padding:9px 12px;resize:vertical;outline:none;"
+          onkeydown="if(event.ctrlKey&&event.key==='Enter')kgAsk()"></textarea>
+        <button class="btn" onclick="kgAsk()" id="kg-ask-btn" style="width:100%;margin-top:8px;padding:10px;font-size:0.9rem;" disabled>Ask</button>
+      </div>
+
+      <div class="panel" id="kg-answer-panel" style="padding:16px 18px;display:none;">
+        <div class="panel-title" style="margin-bottom:8px;" id="kg-answer-label">Answer</div>
+        <div id="kg-answer-text" style="font-size:0.85rem;color:var(--text2);line-height:1.6;"></div>
+        <div id="kg-sources-list" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="panel" style="padding:14px 18px;">
+        <div class="panel-title" style="margin-bottom:10px;">Legend</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:0.78rem;color:var(--text2);">
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--gold);flex-shrink:0;"></span> Concept</div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#5a8fbb;flex-shrink:0;"></span> Person / Org</div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--rose);flex-shrink:0;"></span> Model / Dataset</div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;"></span> Other</div>
+          <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border);">Dimmed nodes = briefly mentioned only</div>
+          <div>Dashed edges = weak link (&lt;0.7 confidence)</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+</div>
+
 <div id="copy-toast">✓ Notes copied</div>
 
 <script>
-  let pollInterval  = null;
-  let _chartsDrawn  = false;
+  let pollInterval   = null;
+  let _chartsDrawn   = false;
   let _analyticsData = null;
   let _currentVideoId = null;
+  let _kgData        = null;
+  let _kgSimulation  = null;
+  let _kgSelectedEdge = null;
 
   function switchTab(name, el) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -1218,6 +1289,9 @@
           });
         }, 50);
       }
+    }
+    if (name === 'kg' && _kgData) {
+      setTimeout(renderGraph, 50);
     }
   }
 
@@ -1285,6 +1359,15 @@
     if (tabBtn) tabBtn.style.display = 'none';
     const chatBtn = document.getElementById('tab-btn-chat');
     if (chatBtn) chatBtn.style.display = 'none';
+    const kgBtn = document.getElementById('tab-btn-kg');
+    if (kgBtn) kgBtn.style.display = 'none';
+    _kgData = null;
+    _kgSelectedEdge = null;
+    if (_kgSimulation) { _kgSimulation.stop(); _kgSimulation = null; }
+    d3.select('#kg-svg').selectAll('*').remove();
+    document.getElementById('kg-empty').style.display = 'flex';
+    document.getElementById('kg-answer-panel').style.display = 'none';
+    document.getElementById('kg-ask-btn').disabled = true;
 
     document.getElementById('chat-thread').innerHTML = `
       <div id="chat-empty" style="text-align:center;color:var(--text3);margin:auto;">
@@ -1404,6 +1487,13 @@
         document.getElementById('chat-locked-badge').style.display = '';
         document.getElementById('chat-subtitle').textContent = 'RAG index unavailable — check console for errors';
       }
+    }
+
+    if (r.kg_ready && r.kg) {
+      _kgData = r.kg;
+      const kgBtn = document.getElementById('tab-btn-kg');
+      if (kgBtn) kgBtn.style.display = '';
+      document.getElementById('kg-ask-btn').disabled = false;
     }
   }
 
@@ -1600,6 +1690,185 @@
     document.getElementById('url-input')
       .addEventListener('keydown', e => { if (e.key === 'Enter') startJob(); });
   });
+
+  const _nodeColor = {
+    Concept: '#c8973a', Person: '#5a8fbb', Organization: '#5a8fbb',
+    Model: '#9b4a5e', Dataset: '#9b4a5e', Location: '#4a9e6a',
+    Event: '#4a9e6a', Other: '#5a5448',
+  };
+
+  function renderGraph() {
+    if (!_kgData) return;
+
+    const showWeak = document.getElementById('kg-show-weak').checked;
+    const svg = d3.select('#kg-svg');
+    svg.selectAll('*').remove();
+
+    const el  = document.getElementById('kg-svg');
+    const W   = el.clientWidth  || 700;
+    const H   = el.clientHeight || 500;
+
+    const edges = showWeak
+      ? [..._kgData.edges, ..._kgData.weak_edges]
+      : _kgData.edges;
+
+    const weakSet = new Set(_kgData.weak_edges.map(e => `${e.source}|${e.target}`));
+
+    // Arrow marker
+    svg.append('defs').append('marker')
+      .attr('id', 'arrow').attr('viewBox', '0 -4 8 8')
+      .attr('refX', 18).attr('refY', 0)
+      .attr('markerWidth', 6).attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', '#2e2e26');
+
+    const g = svg.append('g');
+
+    // Zoom
+    const zoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform));
+    svg.call(zoom);
+    svg._zoom = zoom;
+
+    const nodes = _kgData.nodes.map(n => ({ ...n }));
+    const nodeById = Object.fromEntries(nodes.map(n => [n.id, n]));
+
+    const links = edges
+      .map(e => ({ ...e, source: nodeById[e.source], target: nodeById[e.target] }))
+      .filter(e => e.source && e.target);
+
+    _kgSimulation = d3.forceSimulation(nodes)
+      .force('link',   d3.forceLink(links).id(d => d.id).distance(110))
+      .force('charge', d3.forceManyBody().strength(-280))
+      .force('center', d3.forceCenter(W / 2, H / 2))
+      .force('collision', d3.forceCollide(28));
+
+    const link = g.append('g').selectAll('line').data(links).join('line')
+      .attr('stroke', d => weakSet.has(`${d.source.id}|${d.target.id}`) ? '#2e2e26' : '#3a3a30')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', d => weakSet.has(`${d.source.id}|${d.target.id}`) ? '4 3' : null)
+      .attr('marker-end', 'url(#arrow)')
+      .style('cursor', 'pointer')
+      .on('click', (event, d) => {
+        event.stopPropagation();
+        _kgSelectedEdge = d;
+        link.attr('stroke', l => l === d ? 'var(--gold)' : (weakSet.has(`${l.source.id}|${l.target.id}`) ? '#2e2e26' : '#3a3a30'));
+        kgQueryEdge(d.source.id, d.target.id, d.relation);
+      });
+
+    const edgeLabel = g.append('g').selectAll('text').data(links).join('text')
+      .attr('font-size', 9).attr('fill', '#5a5448').attr('text-anchor', 'middle')
+      .text(d => d.relation);
+
+    const node = g.append('g').selectAll('circle').data(nodes).join('circle')
+      .attr('r', d => d.explained ? 10 : 7)
+      .attr('fill', d => _nodeColor[d.type] || '#5a5448')
+      .attr('opacity', d => d.explained ? 1 : 0.45)
+      .attr('stroke', '#0a0a0f').attr('stroke-width', 1.5)
+      .style('cursor', 'pointer')
+      .call(d3.drag()
+        .on('start', (e, d) => { if (!e.active) _kgSimulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+        .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+        .on('end',   (e, d) => { if (!e.active) _kgSimulation.alphaTarget(0); d.fx = null; d.fy = null; })
+      )
+      .on('click', (event, d) => {
+        event.stopPropagation();
+        node.attr('stroke', n => n === d ? 'var(--gold)' : '#0a0a0f')
+            .attr('stroke-width', n => n === d ? 2.5 : 1.5);
+        kgQueryNode(d.id, d.label);
+      });
+
+    const label = g.append('g').selectAll('text').data(nodes).join('text')
+      .attr('font-size', 10).attr('fill', '#8a8070').attr('text-anchor', 'middle')
+      .attr('dy', 22).text(d => d.label.length > 18 ? d.label.slice(0, 16) + '…' : d.label);
+
+    node.append('title').text(d => `${d.label} (${d.type})`);
+
+    svg.on('click', () => {
+      node.attr('stroke', '#0a0a0f').attr('stroke-width', 1.5);
+      link.attr('stroke', d => weakSet.has(`${d.source.id}|${d.target.id}`) ? '#2e2e26' : '#3a3a30');
+    });
+
+    _kgSimulation.on('tick', () => {
+      link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      edgeLabel.attr('x', d => (d.source.x + d.target.x) / 2)
+               .attr('y', d => (d.source.y + d.target.y) / 2);
+      node.attr('cx', d => d.x).attr('cy', d => d.y);
+      label.attr('x', d => d.x).attr('y', d => d.y);
+    });
+
+    document.getElementById('kg-empty').style.display = 'none';
+  }
+
+  function resetGraphZoom() {
+    const svg = d3.select('#kg-svg');
+    if (svg._zoom) svg.transition().duration(400).call(svg._zoom.transform, d3.zoomIdentity);
+  }
+
+  function pulseNodes(nodeIds) {
+    if (!nodeIds || !nodeIds.length) return;
+    const idSet = new Set(nodeIds);
+    d3.select('#kg-svg').selectAll('circle')
+      .attr('stroke', d => idSet.has(d.id) ? 'var(--gold)' : '#0a0a0f')
+      .attr('stroke-width', d => idSet.has(d.id) ? 2.5 : 1.5);
+  }
+
+  function _showKgAnswer(label, answer, sources, nodeIds) {
+    document.getElementById('kg-answer-label').textContent = label;
+    document.getElementById('kg-answer-text').textContent  = answer;
+    const srcEl = document.getElementById('kg-sources-list');
+    srcEl.innerHTML = sources && sources.length
+      ? `<details style="margin-top:6px;"><summary style="font-size:0.73rem;color:var(--gold-dim);cursor:pointer;letter-spacing:0.04em;">◈ ${sources.length} source excerpt${sources.length > 1 ? 's' : ''}</summary>
+          <ul style="margin:6px 0 0 12px;padding:0;">
+            ${sources.map(s => `<li style="font-size:0.75rem;color:var(--text3);margin-bottom:3px;">${s.replace(/</g,'&lt;')}…</li>`).join('')}
+          </ul></details>` : '';
+    document.getElementById('kg-answer-panel').style.display = '';
+    pulseNodes(nodeIds);
+  }
+
+  async function kgQueryNode(nodeId, label) {
+    if (!_currentVideoId) return;
+    document.getElementById('kg-answer-label').textContent = `About: ${label}`;
+    document.getElementById('kg-answer-text').textContent  = 'Asking Gemma…';
+    document.getElementById('kg-answer-panel').style.display = '';
+    const r = await fetch('/kg/query', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ video_id: _currentVideoId, mode: 'node', node_id: nodeId }),
+    }).then(x => x.json());
+    if (r.error) { document.getElementById('kg-answer-text').textContent = r.error; return; }
+    _showKgAnswer(`About: ${label}`, r.answer, r.sources, r.nodes_used);
+  }
+
+  async function kgQueryEdge(src, tgt, relation) {
+    if (!_currentVideoId) return;
+    document.getElementById('kg-answer-label').textContent = `Relation: ${relation}`;
+    document.getElementById('kg-answer-text').textContent  = 'Asking Gemma…';
+    document.getElementById('kg-answer-panel').style.display = '';
+    const r = await fetch('/kg/query', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ video_id: _currentVideoId, mode: 'edge', src, tgt }),
+    }).then(x => x.json());
+    if (r.error) { document.getElementById('kg-answer-text').textContent = r.error; return; }
+    _showKgAnswer(`Relation: ${relation}`, r.answer, r.sources, r.nodes_used);
+  }
+
+  async function kgAsk() {
+    if (!_currentVideoId) return;
+    const question = document.getElementById('kg-question').value.trim();
+    if (!question) return;
+    const btn = document.getElementById('kg-ask-btn');
+    btn.disabled = true; btn.textContent = 'Asking…';
+    document.getElementById('kg-answer-label').textContent = 'Answer';
+    document.getElementById('kg-answer-text').textContent  = 'Asking Gemma…';
+    document.getElementById('kg-answer-panel').style.display = '';
+    const r = await fetch('/kg/query', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ video_id: _currentVideoId, mode: 'question', question }),
+    }).then(x => x.json());
+    btn.disabled = false; btn.textContent = 'Ask';
+    if (r.error) { document.getElementById('kg-answer-text').textContent = r.error; return; }
+    _showKgAnswer('Answer', r.answer, r.sources, r.nodes_used);
+  }
 </script>
 </body>
 </html>
