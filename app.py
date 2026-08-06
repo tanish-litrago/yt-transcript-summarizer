@@ -1,11 +1,11 @@
 """
-app.py  —  v2.5
+app.py  —  v2.6
 ────────────────
 Flask Web UI for YouTube Transcript Summarizer
-New in v2.5:
-  - RAG (ChromaDB + LangChain + Ollama nomic-embed-text)
-  - Chat-with-Video tab: ask questions, get Gemma-grounded answers
-  - Vector store cached per video_id in outputs/chroma/
+New in v2.6:
+  - Knowledge Graph extraction (Gemma 4 → nodes + edges JSON)
+  - KG-RAG: graph traversal + ChromaDB retrieval for node/edge Q&A
+  - /kg/query endpoint for the D3 graph tab
 Run: python app.py  →  http://localhost:5000
 """
 
@@ -27,7 +27,9 @@ from src.exporter            import export_all
 from src.video_info          import get_video_info
 from src.analyzer            import run_all as run_analytics
 from src.rag_engine          import build_vector_store, answer_question
-from config                  import OUTPUT_DIR, DEVICE, GEMMA_MODEL
+from src.knowledge_graph     import extract_knowledge_graph
+from src.kg_rag_engine       import query_node, query_edge, query_question
+from config                  import OUTPUT_DIR, DEVICE, GEMMA_MODEL, KG_MAX_NODES
 
 import torch
 
@@ -113,17 +115,28 @@ def run_pipeline(job_id: str, url: str, formats: list):
             title        = video_info["title"],
         )
 
-        # 5. RAG index (v2.5) — build or reuse ChromaDB vector store
-        update(92, "Building RAG index for Chat-with-Video...")
+        # 5. RAG index — build or reuse ChromaDB vector store
+        update(90, "Building RAG index for Chat-with-Video...")
         try:
             build_vector_store(transcript, video_id)
             rag_ready = True
         except Exception as rag_err:
-            # RAG failure is non-fatal — summary/export still complete
             print(f"[RAG] WARNING: index build failed: {rag_err}")
             rag_ready = False
 
-        # 6. Export
+        # 6. Knowledge Graph (v2.6)
+        update(93, "Extracting knowledge graph...")
+        kg_data = None
+        try:
+            kg_data = extract_knowledge_graph(
+                transcript     = transcript,
+                entities_typed = keyword_data["entities_typed"],
+                video_id       = video_id,
+            )
+        except Exception as kg_err:
+            print(f"[KG] WARNING: extraction failed: {kg_err}")
+
+        # 7. Export
         update(96, "Exporting files...")
         paths = export_all(notes_md, video_id, formats=formats)
 
@@ -171,7 +184,13 @@ def run_pipeline(job_id: str, url: str, formats: list):
             "language"   : transcript_data["language"],
             "device"     : DEVICE.upper(),
             "analytics"  : analytics_data,
-            "rag_ready"  : rag_ready,   # v2.5: Chat tab enabled when True
+            "rag_ready"  : rag_ready,
+            "kg_ready"   : kg_data is not None,
+            "kg"         : {
+                "nodes":      (kg_data or {}).get("nodes", [])[:KG_MAX_NODES],
+                "edges":      (kg_data or {}).get("edges", []),
+                "weak_edges": (kg_data or {}).get("weak_edges", []),
+            },
         }
 
     except Exception as e:
@@ -263,11 +282,57 @@ def chat():
         return jsonify({"error": f"Chat error: {e}"}), 500
 
 
+@app.route("/kg/query", methods=["POST"])
+def kg_query():
+    data     = request.get_json()
+    video_id = (data.get("video_id") or "").strip()
+    mode     = (data.get("mode") or "question").strip()   # node | edge | question
+
+    if not video_id:
+        return jsonify({"error": "video_id is required."}), 400
+
+    # Reconstruct the graph from cache so we don't hold it in memory
+    from src.knowledge_graph import _load_cached as _load_kg
+    graph = _load_kg(video_id)
+    if graph is None:
+        return jsonify({"error": "No knowledge graph found for this video."}), 404
+
+    try:
+        if mode == "node":
+            node_id = (data.get("node_id") or "").strip()
+            if not node_id:
+                return jsonify({"error": "node_id required for mode=node."}), 400
+            result = query_node(node_id, graph, video_id)
+
+        elif mode == "edge":
+            src = (data.get("src") or "").strip()
+            tgt = (data.get("tgt") or "").strip()
+            if not src or not tgt:
+                return jsonify({"error": "src and tgt required for mode=edge."}), 400
+            result = query_edge(src, tgt, graph, video_id)
+
+        else:   # free-form question
+            question = (data.get("question") or "").strip()
+            if not question:
+                return jsonify({"error": "question required for mode=question."}), 400
+            result = query_question(question, graph, video_id)
+
+        return jsonify(result)
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 503
+    except Exception as e:
+        return jsonify({"error": f"KG query error: {e}"}), 500
+
+
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("  YouTube Transcript Summarizer v2.5 — Web UI")
+    print("  YouTube Transcript Summarizer v2.6 — Web UI")
     print(f"  Engine: {GEMMA_MODEL} (Gemma 4 via Ollama)")
     print("  Chat:   ChromaDB + nomic-embed-text RAG")
+    print("  KG:     Knowledge Graph + KG-RAG (D3.js)")
     print("  Open browser:  http://localhost:5000")
     print("="*60 + "\n")
     check_ollama_ready()
