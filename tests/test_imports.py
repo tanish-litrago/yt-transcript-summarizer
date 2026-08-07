@@ -128,3 +128,13 @@ def test_config_rag_params():
     assert cfg.RAG_CHUNK_OVERLAP >= 0
     assert isinstance(cfg.RAG_TOP_K, int)
     assert cfg.RAG_TOP_K > 0
+
+
+def test_config_kg_params():
+    """v2.6 — KG constants exist and are correctly typed."""
+    cfg = _load_config_with_mock()
+    assert isinstance(cfg.KG_DIR, str),                    "KG_DIR must be a str path"
+    assert isinstance(cfg.KG_CONFIDENCE_THRESHOLD, float), "KG_CONFIDENCE_THRESHOLD must be a float"
+    assert 0.0 < cfg.KG_CONFIDENCE_THRESHOLD < 1.0,        "threshold must be between 0 and 1"
+    assert isinstance(cfg.KG_MAX_NODES, int)
+    assert cfg.KG_MAX_NODES > 0
