@@ -4,7 +4,11 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import OLLAMA_HOST, GEMMA_MODEL, RAG_TOP_K
-from src.gemma_engine import _call_gemma
+
+
+def _get_call_gemma():
+    from src.gemma_engine import _call_gemma
+    return _call_gemma
 
 
 def _get_store(video_id: str):
@@ -85,7 +89,7 @@ def query_node(node_id: str, graph: dict, video_id: str) -> dict:
             "sources": [], "nodes_used": [node_id],
         }
 
-    answer = _call_gemma(_grounded_prompt(f'What does this video say about "{label}"?', chunks))
+    answer = _get_call_gemma()(_grounded_prompt(f'What does this video say about "{label}"?', chunks))
     return {
         "answer":     answer.strip(),
         "sources":    [c[:120] for c in chunks],
@@ -114,7 +118,7 @@ def query_edge(src_id: str, tgt_id: str, graph: dict, video_id: str) -> dict:
         }
 
     question = f'How are "{src["label"]}" and "{tgt["label"]}" related in this video?'
-    answer = _call_gemma(_grounded_prompt(question, chunks, context))
+    answer = _get_call_gemma()(_grounded_prompt(question, chunks, context))
     return {
         "answer":     answer.strip(),
         "sources":    [c[:120] for c in chunks],
@@ -134,7 +138,7 @@ def query_question(question: str, graph: dict, video_id: str) -> dict:
     combined = " ".join(chunks).lower()
     nodes_used = [n["id"] for n in graph.get("nodes", []) if n["label"].lower() in combined]
 
-    answer = _call_gemma(_grounded_prompt(question, chunks))
+    answer = _get_call_gemma()(_grounded_prompt(question, chunks))
     return {
         "answer":     answer.strip(),
         "sources":    [c[:120] for c in chunks],
