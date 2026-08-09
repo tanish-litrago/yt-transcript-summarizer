@@ -102,6 +102,7 @@ def test_answer_question_returns_required_keys(tmp_path):
     sys.modules["config"] = _make_config_stub()
     sys.modules["config"].CHROMA_DIR = str(tmp_path)
     sys.modules.pop("src.rag_engine", None)
+    sys.modules.pop("src.gemma_engine", None)
 
     # Create a fake store directory so load_vector_store thinks a store exists
     fake_store_dir = tmp_path / "fake_video_id"
@@ -119,8 +120,6 @@ def test_answer_question_returns_required_keys(tmp_path):
 
     mock_embeddings = MagicMock()
 
-    # Pre-inject a src.gemma_engine stub so the `from src.gemma_engine import
-    # _call_gemma` inside answer_question resolves without loading the real module.
     gemma_stub = types.ModuleType("src.gemma_engine")
     gemma_stub._call_gemma = MagicMock(return_value="Machine learning is a subset of AI.")
     sys.modules["src.gemma_engine"] = gemma_stub
