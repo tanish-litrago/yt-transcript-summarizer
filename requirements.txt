@@ -2,6 +2,12 @@
 # YouTube Transcript Summarizer & Note Maker — v2.0 Requirements
 # Install with:  pip install -r requirements.txt
 #
+#  PyTorch CUDA NOTE:
+#   torch/torchaudio must be installed SEPARATELY before this file:
+#     pip install torch torchaudio --no-cache-dir --index-url https://download.pytorch.org/whl/cu128
+#   Running `pip install -r requirements.txt` alone may silently install the
+#   CPU-only torch from PyPI (--extra-index-url is not reliable for this).
+#
 # v2.0 change: BART + spaCy/TF-IDF removed. Summarization and keyword/entity
 # extraction now run through Gemma 4 (e4b) served locally by Ollama.
 #
@@ -10,6 +16,7 @@
 #   2. Start the server:  ollama serve
 #   3. Pull the model:    ollama pull gemma4:e4b
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 # Gemma 4 client (talks to local Ollama server)
 requests>=2.31.0
@@ -24,8 +31,9 @@ chromadb>=0.5.0,<1.0
 
 # Speech-to-text fallback (Whisper — GPU accelerated, kept for uncaptioned videos)
 # PyTorch CUDA 12.8 build — targets RTX 4060 (Ada Lovelace / CUDA 12.x)
---extra-index-url https://download.pytorch.org/whl/cu128
-torch>=2.1.0                  # Required by Whisper only — installs CUDA build via above index
+# Install these separately first (see header note above):
+#   pip install torch torchaudio --no-cache-dir --index-url https://download.pytorch.org/whl/cu128
+torch>=2.1.0                  # Whisper dependency — must be CUDA build, see above
 torchaudio>=2.1.0             # Required companion for CUDA torch
 openai-whisper>=20231117
 yt-dlp>=2024.3.10
