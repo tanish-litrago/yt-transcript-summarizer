@@ -890,7 +890,7 @@
   <div class="logo">
     <div class="logo-sigil">✦</div>
     <div class="logo-text">
-      <h1>YouTube Transcript Summarizer <span class="ver">v2.5</span></h1>
+      <h1>YouTube Transcript Summarizer <span class="ver">v2.6</span></h1>
       <p>Gemma 4 (Ollama) &nbsp;·&nbsp; CUDA-Accelerated Whisper Fallback</p>
     </div>
   </div>
@@ -1269,6 +1269,7 @@
   let _currentVideoId = null;
   let _kgData        = null;
   let _kgSimulation  = null;
+  let _kgZoom        = null;
   let _kgSelectedEdge = null;
 
   function switchTab(name, el) {
@@ -1363,6 +1364,7 @@
     if (kgBtn) kgBtn.style.display = 'none';
     _kgData = null;
     _kgSelectedEdge = null;
+    _kgZoom = null;
     if (_kgSimulation) { _kgSimulation.stop(); _kgSimulation = null; }
     d3.select('#kg-svg').selectAll('*').remove();
     document.getElementById('kg-empty').style.display = 'flex';
@@ -1705,8 +1707,10 @@
     svg.selectAll('*').remove();
 
     const el  = document.getElementById('kg-svg');
-    const W   = el.clientWidth  || 700;
-    const H   = el.clientHeight || 500;
+    // Use offsetWidth/offsetHeight so we always get real dimensions even if
+    // clientWidth is 0 (e.g. tab was never visible yet).
+    const W   = el.offsetWidth  || 700;
+    const H   = el.offsetHeight || 500;
 
     const edges = showWeak
       ? [..._kgData.edges, ..._kgData.weak_edges]
@@ -1720,14 +1724,13 @@
       .attr('refX', 18).attr('refY', 0)
       .attr('markerWidth', 6).attr('markerHeight', 6)
       .attr('orient', 'auto')
-      .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', '#2e2e26');
+      .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', '#3a3a30');
 
     const g = svg.append('g');
 
-    // Zoom
-    const zoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform));
-    svg.call(zoom);
-    svg._zoom = zoom;
+    // Zoom — stored in module-level _kgZoom so resetGraphZoom() can always find it
+    _kgZoom = d3.zoom().scaleExtent([0.2, 4]).on('zoom', e => g.attr('transform', e.transform));
+    svg.call(_kgZoom);
 
     const nodes = _kgData.nodes.map(n => ({ ...n }));
     const nodeById = Object.fromEntries(nodes.map(n => [n.id, n]));
@@ -1737,13 +1740,13 @@
       .filter(e => e.source && e.target);
 
     _kgSimulation = d3.forceSimulation(nodes)
-      .force('link',   d3.forceLink(links).id(d => d.id).distance(110))
-      .force('charge', d3.forceManyBody().strength(-280))
+      .force('link',   d3.forceLink(links).id(d => d.id).distance(120))
+      .force('charge', d3.forceManyBody().strength(-320))
       .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collision', d3.forceCollide(28));
+      .force('collision', d3.forceCollide(30));
 
     const link = g.append('g').selectAll('line').data(links).join('line')
-      .attr('stroke', d => weakSet.has(`${d.source.id}|${d.target.id}`) ? '#2e2e26' : '#3a3a30')
+      .attr('stroke', d => weakSet.has(`${d.source.id}|${d.target.id}`) ? '#3a3a30' : '#5a5040')
       .attr('stroke-width', 1.5)
       .attr('stroke-dasharray', d => weakSet.has(`${d.source.id}|${d.target.id}`) ? '4 3' : null)
       .attr('marker-end', 'url(#arrow)')
@@ -1751,18 +1754,20 @@
       .on('click', (event, d) => {
         event.stopPropagation();
         _kgSelectedEdge = d;
-        link.attr('stroke', l => l === d ? 'var(--gold)' : (weakSet.has(`${l.source.id}|${l.target.id}`) ? '#2e2e26' : '#3a3a30'));
+        link.attr('stroke', l => l === d ? 'var(--gold)' : (weakSet.has(`${l.source.id}|${l.target.id}`) ? '#3a3a30' : '#5a5040'));
         kgQueryEdge(d.source.id, d.target.id, d.relation);
       });
 
+    // Edge relation labels — brighter so they're readable on the dark bg
     const edgeLabel = g.append('g').selectAll('text').data(links).join('text')
-      .attr('font-size', 9).attr('fill', '#5a5448').attr('text-anchor', 'middle')
+      .attr('font-size', 9).attr('fill', '#7a7060').attr('text-anchor', 'middle')
+      .style('pointer-events', 'none')
       .text(d => d.relation);
 
     const node = g.append('g').selectAll('circle').data(nodes).join('circle')
       .attr('r', d => d.explained ? 10 : 7)
       .attr('fill', d => _nodeColor[d.type] || '#5a5448')
-      .attr('opacity', d => d.explained ? 1 : 0.45)
+      .attr('opacity', d => d.explained ? 1 : 0.5)
       .attr('stroke', '#0a0a0f').attr('stroke-width', 1.5)
       .style('cursor', 'pointer')
       .call(d3.drag()
@@ -1777,15 +1782,19 @@
         kgQueryNode(d.id, d.label);
       });
 
+    // Node labels — use var(--text) colour so they're clearly visible
     const label = g.append('g').selectAll('text').data(nodes).join('text')
-      .attr('font-size', 10).attr('fill', '#8a8070').attr('text-anchor', 'middle')
-      .attr('dy', 22).text(d => d.label.length > 18 ? d.label.slice(0, 16) + '…' : d.label);
+      .attr('font-size', 11).attr('fill', '#d0cdc8').attr('text-anchor', 'middle')
+      .attr('dy', 24)
+      .style('pointer-events', 'none')
+      .style('text-shadow', '0 1px 3px #0a0a0f, 0 -1px 3px #0a0a0f')
+      .text(d => d.label.length > 22 ? d.label.slice(0, 20) + '…' : d.label);
 
     node.append('title').text(d => `${d.label} (${d.type})`);
 
     svg.on('click', () => {
       node.attr('stroke', '#0a0a0f').attr('stroke-width', 1.5);
-      link.attr('stroke', d => weakSet.has(`${d.source.id}|${d.target.id}`) ? '#2e2e26' : '#3a3a30');
+      link.attr('stroke', d => weakSet.has(`${d.source.id}|${d.target.id}`) ? '#3a3a30' : '#5a5040');
     });
 
     _kgSimulation.on('tick', () => {
@@ -1797,13 +1806,36 @@
       label.attr('x', d => d.x).attr('y', d => d.y);
     });
 
+    // After the simulation cools, auto-fit the graph to fill the SVG viewport.
+    // This fixes the "graph only shows a small area" bug when clientWidth was 0
+    // at render time and the center force used wrong coordinates.
+    _kgSimulation.on('end', () => {
+      if (!nodes.length) return;
+      const xs = nodes.map(n => n.x);
+      const ys = nodes.map(n => n.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const gW = maxX - minX || 1;
+      const gH = maxY - minY || 1;
+      const pad = 60;
+      const scale = Math.min(0.9, (W - pad * 2) / gW, (H - pad * 2) / gH);
+      const tx = (W - gW * scale) / 2 - minX * scale;
+      const ty = (H - gH * scale) / 2 - minY * scale;
+      svg.transition().duration(600)
+        .call(_kgZoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+    });
+
     document.getElementById('kg-empty').style.display = 'none';
   }
 
   function resetGraphZoom() {
     const svg = d3.select('#kg-svg');
-    if (svg._zoom) svg.transition().duration(400).call(svg._zoom.transform, d3.zoomIdentity);
+    // _kgZoom is set by renderGraph(); falls back to zoomIdentity if graph not yet rendered
+    if (_kgZoom) {
+      svg.transition().duration(500).call(_kgZoom.transform, d3.zoomIdentity);
+    }
   }
+
 
   function pulseNodes(nodeIds) {
     if (!nodeIds || !nodeIds.length) return;

@@ -98,22 +98,27 @@ ollama pull nomic-embed-text
 py -3.11 -m venv venv
 venv\Scripts\activate        # Windows
 # source venv/bin/activate   # macOS / Linux
+
+# Install PyTorch with CUDA 12.8 FIRST (must be a separate step — pip's
+# --extra-index-url is unreliable for torch and may silently install CPU-only)
+pip install torch torchaudio --no-cache-dir --index-url https://download.pytorch.org/whl/cu128
+
+# Then install the rest
 pip install -r requirements.txt
 ```
 
-> **GPU note:** `requirements.txt` includes `--extra-index-url https://download.pytorch.org/whl/cu128`,
-> so `torch` is installed with **CUDA 12.8** support automatically — no manual step needed.
-> After install, verify your GPU is detected:
+> **Verify GPU is detected after install:**
 > ```bash
 > python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 > # Expected: True   NVIDIA GeForce RTX 4060 ...
 > ```
 
-**3 — (Optional) Reinstall torch with CUDA if you get CPU-only**
+**3 — (Optional) Fix CPU-only torch**
 
+If `torch.cuda.is_available()` returns `False`:
 ```bash
 pip uninstall torch torchaudio -y
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
+pip install torch torchaudio --no-cache-dir --index-url https://download.pytorch.org/whl/cu128
 ```
 
 ---
@@ -136,7 +141,7 @@ python main.py --url "https://www.youtube.com/watch?v=VIDEO_ID"
 ## Project Structure
 
 ```
-yt_summarizer/
+yt-transcript-summarizer/
 ├── app.py                          # Flask Web UI (v2.6: + /kg/query route)
 ├── main.py                         # CLI entry point
 ├── config.py                       # Model name, paths, Ollama host, RAG + KG config
