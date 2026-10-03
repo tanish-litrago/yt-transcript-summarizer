@@ -1,7 +1,11 @@
 """
-app.py  —  v2.6
+app.py  —  v3.0
 ────────────────
 Flask Web UI for YouTube Transcript Summarizer
+New in v3.0:
+  - Claim extraction + fact-checking via DuckDuckGo + Gemma 4
+  - On-demand /fact-check endpoint (triggered by user button)
+  - Fact Check tab with verdict badges; inline highlights in Summary
 New in v2.6:
   - Knowledge Graph extraction (Gemma 4 → nodes + edges JSON)
   - KG-RAG: graph traversal + ChromaDB retrieval for node/edge Q&A
@@ -11,6 +15,11 @@ Run: python app.py  →  http://localhost:5000
 
 import os
 import sys
+
+# Must be set before ANY chromadb / langchain-chroma import — suppresses the
+# broken telemetry client that spams "capture() takes 1 positional argument".
+os.environ["ANONYMIZED_TELEMETRY"] = "false"
+
 import threading
 import uuid
 import time
@@ -29,6 +38,7 @@ from src.analyzer            import run_all as run_analytics
 from src.rag_engine          import build_vector_store, answer_question
 from src.knowledge_graph     import extract_knowledge_graph
 from src.kg_rag_engine       import query_node, query_edge, query_question
+from src.fact_checker        import fact_check as run_fact_check, _load_cached as _load_fact_check
 from config                  import OUTPUT_DIR, DEVICE, GEMMA_MODEL, KG_MAX_NODES
 
 import torch
@@ -174,6 +184,7 @@ def run_pipeline(job_id: str, url: str, formats: list):
             "keywords"   : keyword_data["combined"][:15],
             "entities"   : keyword_data["entities"][:10],
             "notes_md"   : notes_md,
+            "full_summary": summary_data["full_summary"],   # used by /fact-check
             "paths"      : paths,
             "gpu_time"   : gpu_time,
             "fetch_time" : fetch_time,
@@ -327,12 +338,33 @@ def kg_query():
         return jsonify({"error": f"KG query error: {e}"}), 500
 
 
+@app.route("/fact-check", methods=["POST"])
+def fact_check_route():
+    """v3.0 — On-demand claim extraction + web fact-checking."""
+    data     = request.get_json()
+    video_id = (data.get("video_id") or "").strip()
+    summary  = (data.get("summary")  or "").strip()
+    force    = bool(data.get("force", False))
+
+    if not video_id:
+        return jsonify({"error": "video_id is required."}), 400
+    if not summary:
+        return jsonify({"error": "summary is required."}), 400
+
+    try:
+        results = run_fact_check(summary, video_id, force=force)
+        return jsonify({"claims": results})
+    except Exception as e:
+        return jsonify({"error": f"Fact-check error: {e}"}), 500
+
+
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("  YouTube Transcript Summarizer v2.6 — Web UI")
+    print("  YouTube Transcript Summarizer v3.0 — Web UI")
     print(f"  Engine: {GEMMA_MODEL} (Gemma 4 via Ollama)")
     print("  Chat:   ChromaDB + nomic-embed-text RAG")
     print("  KG:     Knowledge Graph + KG-RAG (D3.js)")
+    print("  FC:     Claim extraction + DuckDuckGo fact-checking")
     print("  Open browser:  http://localhost:5000")
     print("="*60 + "\n")
     check_ollama_ready()

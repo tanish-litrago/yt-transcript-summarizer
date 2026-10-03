@@ -882,6 +882,83 @@
       .stats-row { grid-template-columns: repeat(2, 1fr); }
       .analytics-grid-2 { grid-template-columns: 1fr; }
     }
+
+    /* ── Fact Check ─────────────────────────────────────────────────────────── */
+    .fc-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+    }
+    .fc-btn {
+      background: transparent;
+      border: 1px solid var(--border-gold);
+      color: var(--gold);
+      padding: 7px 18px;
+      font-family: var(--font-serif);
+      font-size: 0.88rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .fc-btn:hover { background: var(--gold-glow); }
+    .fc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .fc-claim-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .fc-claim-card::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px;
+      width: 4px; bottom: -1px;
+    }
+    .fc-claim-card.supported   { border-left-color: var(--green); }
+    .fc-claim-card.supported::before { background: var(--green); }
+    .fc-claim-card.contradicted { border-left-color: var(--red); }
+    .fc-claim-card.contradicted::before { background: var(--red); }
+    .fc-claim-card.partially   { border-left-color: var(--amber); }
+    .fc-claim-card.partially::before { background: var(--amber); }
+    .fc-claim-card.unverifiable { border-left-color: var(--text3); }
+    .fc-claim-card.unverifiable::before { background: var(--text3); }
+
+    .fc-verdict-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 2px 9px;
+      border-radius: 0; margin-bottom: 8px;
+    }
+    .fc-verdict-badge.supported    { background: var(--green-dim);  color: var(--green); border: 1px solid var(--green); }
+    .fc-verdict-badge.contradicted { background: var(--red-dim);    color: #e08080;       border: 1px solid var(--red); }
+    .fc-verdict-badge.partially    { background: rgba(200,151,58,0.15); color: var(--amber); border: 1px solid var(--amber); }
+    .fc-verdict-badge.unverifiable { background: var(--bg3);        color: var(--text2);  border: 1px solid var(--border2); }
+
+    .fc-claim-text {
+      font-size: 0.9rem; color: var(--text); line-height: 1.5; margin-bottom: 8px;
+    }
+    .fc-explanation {
+      font-size: 0.82rem; color: var(--text2); line-height: 1.55; margin-bottom: 8px;
+    }
+    .fc-sources a {
+      display: inline-block; font-size: 0.72rem; color: var(--gold-dim);
+      margin-right: 10px; text-decoration: none; transition: color 0.2s;
+    }
+    .fc-sources a:hover { color: var(--gold); }
+
+    /* Inline highlight in Summary notes */
+    mark.fc-supported    { background: rgba(74,158,106,0.18); color: var(--text); border-bottom: 1px solid var(--green); }
+    mark.fc-contradicted { background: rgba(176,64,64,0.18);  color: var(--text); border-bottom: 1px solid var(--red); }
+    mark.fc-partially    { background: rgba(200,151,58,0.15); color: var(--text); border-bottom: 1px solid var(--amber); }
+    mark.fc-unverifiable { background: transparent;           color: var(--text); border-bottom: 1px dashed var(--text3); }
+
+    .fc-empty {
+      text-align: center; padding: 50px 20px; color: var(--text3);
+    }
+    .fc-empty .icon { font-size: 2rem; margin-bottom: 10px; opacity: 0.4; }
+
   </style>
 </head>
 <body>
@@ -907,6 +984,7 @@
   <div class="tab" id="tab-btn-chat" onclick="switchTab('chat', this)" style="display:none;">Chat</div>
   <div class="tab" id="tab-btn-analytics" onclick="switchTab('analytics', this)" style="display:none;">Analytics</div>
   <div class="tab" id="tab-btn-kg" onclick="switchTab('kg', this)" style="display:none;">Graph</div>
+  <div class="tab" id="tab-btn-fc" onclick="switchTab('fc', this)" style="display:none;">Fact Check</div>
   <div class="tab" onclick="switchTab('history', this)">History ({{ history|length }})</div>
 </div>
 
@@ -1032,7 +1110,10 @@
     <div class="panel">
       <div class="notes-header">
         <div class="panel-title" style="margin:0">Generated Notes</div>
-        <button class="btn-outline" onclick="copyNotes()">Copy Notes</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="fc-btn" id="fc-run-btn" onclick="runFactCheck()" disabled title="Fact-check key claims in the summary against web sources">⚑ Fact Check</button>
+          <button class="btn-outline" onclick="copyNotes()">Copy Notes</button>
+        </div>
       </div>
       <div class="notes-box" id="notes-box"></div>
     </div>
@@ -1260,6 +1341,48 @@
 </main>
 </div>
 
+<!-- ── FACT CHECK TAB ────────────────────────────────────────────────────────── -->
+<div id="tab-fc" class="tab-content">
+<main>
+
+  <div class="panel" style="margin-bottom:14px;">
+    <div class="fc-toolbar">
+      <div>
+        <div class="panel-title" style="margin:0 0 2px;">Fact Check</div>
+        <p style="font-size:0.78rem;color:var(--text2);">Gemma extracts key factual claims from the summary, searches the web via DuckDuckGo, then evaluates each one.</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="fc-btn" id="fc-tab-run-btn" onclick="runFactCheck()" disabled>⚑ Run Fact Check</button>
+        <button class="fc-btn" id="fc-tab-rerun-btn" onclick="runFactCheck(true)" disabled style="display:none;">↺ Re-run</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend row -->
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:0.75rem;color:var(--text2);">
+    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--green);display:inline-block;"></span> Supported</span>
+    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--red);display:inline-block;"></span> Contradicted</span>
+    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--amber);display:inline-block;"></span> Partially supported</span>
+    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--border2);display:inline-block;"></span> Unverifiable</span>
+  </div>
+
+  <div id="fc-loading" style="display:none;text-align:center;padding:40px;color:var(--text2);">
+    <div style="font-size:1.5rem;margin-bottom:10px;animation:pip-pulse 1.5s infinite;">⚑</div>
+    <div style="font-size:0.88rem;">Searching the web and verifying claims…</div>
+    <div style="font-size:0.75rem;color:var(--text3);margin-top:6px;">This may take 30–90 seconds depending on the number of claims.</div>
+  </div>
+
+  <div id="fc-results"></div>
+
+  <div id="fc-empty" class="fc-empty">
+    <div class="icon">⚑</div>
+    <div style="font-family:var(--font-serif);font-size:0.95rem;">Run a fact check after summarizing a video.</div>
+    <div style="font-size:0.78rem;margin-top:6px;">Gemma will extract checkable claims and verify them against live web results.</div>
+  </div>
+
+</main>
+</div>
+
 <div id="copy-toast">✓ Notes copied</div>
 
 <script>
@@ -1271,6 +1394,8 @@
   let _kgSimulation  = null;
   let _kgZoom        = null;
   let _kgSelectedEdge = null;
+  let _fcSummary     = null;   // full summary text for the current video
+  let _fcResults     = null;   // cached fact-check result array
 
   function switchTab(name, el) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -1370,6 +1495,19 @@
     document.getElementById('kg-empty').style.display = 'flex';
     document.getElementById('kg-answer-panel').style.display = 'none';
     document.getElementById('kg-ask-btn').disabled = true;
+
+    // Reset fact-check
+    _fcSummary = null;
+    _fcResults = null;
+    const fcBtn = document.getElementById('tab-btn-fc');
+    if (fcBtn) fcBtn.style.display = 'none';
+    document.getElementById('fc-results').innerHTML = '';
+    document.getElementById('fc-empty').style.display = 'block';
+    document.getElementById('fc-loading').style.display = 'none';
+    ['fc-run-btn','fc-tab-run-btn','fc-tab-rerun-btn'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) { b.disabled = true; b.style.display = id === 'fc-tab-rerun-btn' ? 'none' : ''; }
+    });
 
     document.getElementById('chat-thread').innerHTML = `
       <div id="chat-empty" style="text-align:center;color:var(--text3);margin:auto;">
@@ -1496,6 +1634,17 @@
       const kgBtn = document.getElementById('tab-btn-kg');
       if (kgBtn) kgBtn.style.display = '';
       document.getElementById('kg-ask-btn').disabled = false;
+    }
+
+    // Enable Fact Check tab and button now that we have a summary
+    _fcSummary = r.full_summary || '';
+    if (_fcSummary) {
+      const fcTabBtn = document.getElementById('tab-btn-fc');
+      if (fcTabBtn) fcTabBtn.style.display = '';
+      ['fc-run-btn', 'fc-tab-run-btn'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.disabled = false;
+      });
     }
   }
 
@@ -1901,6 +2050,116 @@
     if (r.error) { document.getElementById('kg-answer-text').textContent = r.error; return; }
     _showKgAnswer('Answer', r.answer, r.sources, r.nodes_used);
   }
+
+  // ── Fact Check ──────────────────────────────────────────────────────────────
+
+  const _fcIcons = { supported:'✓', contradicted:'✗', partially:'~', unverifiable:'?' };
+
+  function _setFcButtonsRunning(running) {
+    ['fc-run-btn', 'fc-tab-run-btn'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) { b.disabled = running; b.textContent = running ? '⚑ Checking…' : '⚑ Fact Check'; }
+    });
+  }
+
+  async function runFactCheck(force = false) {
+    if (!_currentVideoId || !_fcSummary) return;
+
+    _setFcButtonsRunning(true);
+    document.getElementById('fc-empty').style.display   = 'none';
+    document.getElementById('fc-results').innerHTML     = '';
+    document.getElementById('fc-loading').style.display = 'block';
+
+    const fcTabEl = document.getElementById('tab-btn-fc');
+    if (fcTabEl) switchTab('fc', fcTabEl);
+
+    try {
+      const resp = await fetch('/fact-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_id: _currentVideoId, summary: _fcSummary, force }),
+      });
+      const data = await resp.json();
+      document.getElementById('fc-loading').style.display = 'none';
+
+      if (data.error) {
+        document.getElementById('fc-results').innerHTML =
+          `<p style="color:var(--red);font-size:0.85rem;">Error: ${data.error}</p>`;
+        document.getElementById('fc-empty').style.display = 'block';
+        return;
+      }
+
+      _fcResults = data.claims || [];
+      renderFactCheck(_fcResults);
+      applyInlineHighlights(_fcResults);
+
+      const rerunBtn = document.getElementById('fc-tab-rerun-btn');
+      if (rerunBtn) { rerunBtn.disabled = false; rerunBtn.style.display = ''; }
+      ['fc-run-btn','fc-tab-run-btn'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.style.display = 'none';
+      });
+
+    } catch (e) {
+      document.getElementById('fc-loading').style.display = 'none';
+      document.getElementById('fc-results').innerHTML =
+        `<p style="color:var(--red);font-size:0.85rem;">Network error: ${e.message}</p>`;
+    } finally {
+      _setFcButtonsRunning(false);
+    }
+  }
+
+  function renderFactCheck(claims) {
+    const container = document.getElementById('fc-results');
+    if (!claims || !claims.length) {
+      container.innerHTML = `
+        <div style="padding:20px;color:var(--text2);font-size:0.85rem;border:1px solid var(--border);background:var(--bg2);">
+          ⚠ Gemma couldn't extract any checkable claims from this summary.
+          The summary may be too short or abstract. Try clicking <b>↺ Re-run</b>
+          or use a more factual video.
+        </div>`;
+      document.getElementById('fc-empty').style.display = 'none';
+      return;
+    }
+    document.getElementById('fc-empty').style.display = 'none';
+    const verdictLabel = {
+      supported:'Supported', contradicted:'Contradicted',
+      partially:'Partially Supported', unverifiable:'Unverifiable',
+    };
+    container.innerHTML = claims.map(c => {
+      const v = c.verdict || 'unverifiable';
+      const sources = (c.sources || []).filter(s => s.url)
+        .map(s => `<a href="${s.url}" target="_blank" rel="noopener">${(s.title||s.url).replace(/</g,'&lt;')}</a>`)
+        .join('');
+      return `<div class="fc-claim-card ${v}">
+          <div class="fc-verdict-badge ${v}">${_fcIcons[v]||'?'} ${verdictLabel[v]||v}</div>
+          <div class="fc-claim-text">${c.claim.replace(/</g,'&lt;')}</div>
+          <div class="fc-explanation">${(c.explanation||'').replace(/</g,'&lt;')}</div>
+          ${sources ? `<div class="fc-sources">${sources}</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  function applyInlineHighlights(claims) {
+    const notesBox = document.getElementById('notes-box');
+    if (!notesBox || !claims || !claims.length) return;
+    const text = notesBox.textContent;
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const highlighted = sentences.map(sentence => {
+      const escaped = sentence.replace(/</g, '&lt;');
+      for (const c of claims) {
+        const probe = c.claim.slice(0, 30).toLowerCase();
+        if (probe && sentence.toLowerCase().includes(probe)) {
+          const cls   = `fc-${c.verdict || 'unverifiable'}`;
+          const title = `${c.verdict||''} — ${(c.explanation||'').slice(0,100)}…`;
+          return `<mark class="${cls}" title="${title.replace(/"/g,'&quot;')}">${escaped}</mark>`;
+        }
+      }
+      return escaped;
+    });
+    notesBox.innerHTML = highlighted.join(' ');
+  }
+
 </script>
 </body>
 </html>

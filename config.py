@@ -54,3 +54,11 @@ KG_CONFIDENCE_THRESHOLD = 0.7   # edges below this are "weak links" (dimmed)
 KG_MAX_NODES            = 30    # nodes shown before "Expand All"
 
 os.makedirs(KG_DIR, exist_ok=True)
+
+# ── Fact-Checking (v3.0) ──────────────────────────────────────────────────────
+# Results cached per video_id in outputs/fact_checks/.
+# Uses DuckDuckGo (no API key) + Gemma 4 for verification.
+FACT_CHECK_DIR = os.path.join(OUTPUT_DIR, "fact_checks")
+MAX_CLAIMS     = 8    # max claims extracted per video summary
+
+os.makedirs(FACT_CHECK_DIR, exist_ok=True)
