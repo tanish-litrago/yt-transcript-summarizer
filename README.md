@@ -1,9 +1,10 @@
 # YouTube Transcript Summarizer & Note Maker
-### v2.6 — Local LLM · RAG Chat · Knowledge Graph
+### v3.0 — Local LLM · RAG Chat · Knowledge Graph · Fact-Checking
 
 > Paste a YouTube URL → get structured Markdown / PDF / DOCX notes, **chat with the video**,
-> and **explore its knowledge graph** — all powered by **Gemma 4 (e4b)** running fully locally
-> on your NVIDIA RTX GPU via Ollama. No cloud APIs. No data leaves your machine.
+> **explore its knowledge graph**, and **fact-check key claims against the web** — all powered
+> by **Gemma 4 (e4b)** running fully locally on your NVIDIA RTX GPU via Ollama.
+> No cloud APIs. No data leaves your machine.
 
 [![CI](https://github.com/tanish-litrago/yt-transcript-summarizer/actions/workflows/ci.yml/badge.svg)](https://github.com/tanish-litrago/yt-transcript-summarizer/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat-square&logo=python)
@@ -13,6 +14,39 @@
 ![ChromaDB](https://img.shields.io/badge/ChromaDB-0.6-orange?style=flat-square)
 ![D3.js](https://img.shields.io/badge/D3.js-v7-f9a825?style=flat-square)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)
+
+---
+
+## What's New in v3.0 — Fact-Checking
+
+| | v2.6 | v3.0 |
+|---|---|---|
+| **Fact Check tab** | — | Dedicated tab with verdict cards |
+| **Claim extraction** | — | Gemma extracts 5–8 checkable factual claims from the summary |
+| **Web search** | — | DuckDuckGo search per claim (free, no API key) |
+| **Verdict** | — | Gemma cross-references claim vs. web snippets → `supported / contradicted / partially / unverifiable` |
+| **Inline highlights** | — | Matched sentences in the notes get colour-coded underlines |
+| **Caching** | — | Results cached per `video_id` in `outputs/fact_checks/` |
+| **On-demand** | — | Triggered manually after summarizing — doesn't slow the pipeline |
+
+**How fact-checking works:**
+```
+User clicks "⚑ Fact Check"
+    │
+    ▼
+fact_checker.py
+    ├── extract_claims(summary)   → Gemma → JSON list of 5–8 factual claims
+    ├── search_claim(claim)       → DuckDuckGo DDGS → top 4 web snippets per claim
+    └── verify_claim(claim, hits) → Gemma → { verdict, explanation, sources }
+    │
+    ▼
+Fact Check tab  →  verdict cards (✓ Supported / ✗ Contradicted / ~ Partial / ? Unverifiable)
+Summary tab     →  inline highlights on matched sentences
+```
+
+> **Note on "unverifiable":** original educational videos (e.g. 3Blue1Brown, lecture recordings)
+> will show mostly "unverifiable" — they present original explanations, not citable external facts.
+> Fact-checking works best on news summaries, tech talks citing papers, or videos with statistics.
 
 ---
 
@@ -33,16 +67,13 @@
 Your question / node click
     │
     ▼
-knowledge_graph.py   →  find relevant node(s) in graph
-                     →  1-hop traversal: pull in neighbour nodes
+kg_rag_engine.py   →  find relevant node(s) in graph
+                   →  1-hop traversal: pull in neighbour nodes
+                   →  ChromaDB similarity search (label + neighbours, 2× top-k)
+                   →  grounded prompt to Gemma 4
     │
     ▼
-kg_rag_engine.py     →  ChromaDB similarity search using node labels + neighbours
-                     →  grounded prompt to Gemma 4
-    │
-    ▼
-Graph tab            →  answer panel + collapsible source excerpts
-                     →  involved nodes pulse gold on graph
+Graph tab          →  answer panel + source excerpts + involved nodes pulse gold
 ```
 
 Plain RAG (v2.5) only retrieves chunks similar to the question. KG-RAG also traverses graph edges — so asking about "BERT" also retrieves "Transformer" chunks (its parent via `gave_rise_to`), giving Gemma richer context.
@@ -64,12 +95,13 @@ Plain RAG (v2.5) only retrieves chunks similar to the question. KG-RAG also trav
 ## Features
 
 - **Transcript extraction** via YouTube Transcript API, with OpenAI Whisper (CUDA) as fallback for uncaptioned videos
-- **Local LLM pipeline** — Gemma 4 (e4b) via Ollama handles summarization, keyword extraction, named-entity recognition, and knowledge graph extraction — no cloud API calls
+- **Local LLM pipeline** — Gemma 4 (e4b) via Ollama handles summarization, keyword extraction, named-entity recognition, knowledge graph extraction, and fact-checking — no cloud API calls
+- **Fact-Checking** — DuckDuckGo search + Gemma verifies key claims from the summary against live web results
 - **Knowledge Graph** — D3.js force-directed graph auto-built from transcript; click nodes/edges to query Gemma via KG-RAG
 - **RAG Chat-with-Video** — ask natural-language questions, get Gemma-grounded answers with source excerpts
 - **Structured Markdown notes** with section summaries, keywords, and entities
 - **Export** to `.md`, `.pdf`, `.docx`
-- **Flask Web UI** — Summary · Chat · Analytics · **Graph** · History tabs, live progress bar, dark fantasy aesthetic
+- **Flask Web UI** — Summary · Chat · Analytics · Graph · **Fact Check** · History tabs, live progress bar, dark fantasy aesthetic
 - **Analytics dashboard** (Plotly) — word frequency, compression ratio, readability, sentiment, speaking pace, entity types
 
 ---
@@ -142,32 +174,35 @@ python main.py --url "https://www.youtube.com/watch?v=VIDEO_ID"
 
 ```
 yt-transcript-summarizer/
-├── app.py                          # Flask Web UI (v2.6: + /kg/query route)
+├── app.py                          # Flask Web UI (v3.0: + /fact-check route)
 ├── main.py                         # CLI entry point
-├── config.py                       # Model name, paths, Ollama host, RAG + KG config
+├── config.py                       # Model name, paths, Ollama host, RAG + KG + FC config
 ├── requirements.txt
 ├── src/
 │   ├── gemma_engine.py             # Gemma 4 (Ollama) — summarization + keywords + entities
 │   ├── rag_engine.py               # RAG engine — ChromaDB + LangChain + Ollama embeddings
-│   ├── knowledge_graph.py          # v2.6: Gemma KG extraction → nodes + edges JSON
-│   ├── kg_rag_engine.py            # v2.6: KG-RAG — graph traversal + ChromaDB retrieval
+│   ├── knowledge_graph.py          # Gemma KG extraction → nodes + edges JSON
+│   ├── kg_rag_engine.py            # KG-RAG — graph traversal + ChromaDB retrieval
+│   ├── fact_checker.py             # v3.0: claim extraction + DuckDuckGo + Gemma verification
 │   ├── transcript_fetcher.py       # YouTube Transcript API + Whisper fallback
 │   ├── analyzer.py                 # Analytics: readability, sentiment, word freq, entity types
 │   ├── note_generator.py           # Builds structured Markdown notes
 │   ├── exporter.py                 # MD / PDF / DOCX export
 │   └── video_info.py               # yt-dlp — title, thumbnail, channel, duration
 ├── templates/
-│   └── index.html                  # Web UI — Summary · Chat · Analytics · Graph · History
+│   └── index.html                  # Web UI — Summary · Chat · Analytics · Graph · Fact Check · History
 ├── outputs/
 │   ├── chroma/                     # ChromaDB vector stores (one subdir per video_id)
-│   ├── kg/                         # v2.6: Knowledge graph JSON cache (one file per video_id)
+│   ├── kg/                         # Knowledge graph JSON cache (one file per video_id)
+│   ├── fact_checks/                # v3.0: Fact-check results cache (one file per video_id)
 │   └── history.json
 └── tests/
     ├── test_analyzer.py
     ├── test_config.py
     ├── test_imports.py
     ├── test_rag_engine.py
-    └── test_knowledge_graph.py     # v2.6: 3 mocked KG tests
+    ├── test_knowledge_graph.py
+    └── test_fact_checker.py        # v3.0: 10 mocked fact-checker tests
 ```
 
 ---
@@ -196,6 +231,25 @@ note_generator.py      →  builds structured Markdown
 exporter.py            →  saves .md / .pdf / .docx → outputs/
 ```
 
+**Fact-checking pipeline (on-demand):**
+```
+User clicks "⚑ Fact Check" after summarizing
+    │
+    ▼
+POST /fact-check  { video_id, summary }
+    │
+    ▼
+fact_checker.py
+    ├── extract_claims()   →  Gemma → up to 8 checkable factual claims (JSON)
+    ├── search_claim()     →  DuckDuckGo DDGS → 4 web snippets per claim
+    └── verify_claim()     →  Gemma → { verdict, explanation, sources }
+    │
+    ▼
+Fact Check tab    →  verdict cards with source links
+Summary tab       →  inline highlights on matching sentences
+outputs/fact_checks/<video_id>.json  →  cached for re-runs
+```
+
 **KG-RAG query pipeline (Graph tab):**
 ```
 Node click / edge click / typed question
@@ -203,8 +257,8 @@ Node click / edge click / typed question
     ▼
 kg_rag_engine.py    →  find relevant nodes in the cached graph
                     →  1-hop traversal to collect neighbour node labels
-                    →  ChromaDB similarity search (node labels + neighbours as query)
-                    →  grounded prompt: "Based only on these excerpts, explain X"
+                    →  ChromaDB similarity search (node labels + neighbours, 2× top-k)
+                    →  two-pass fallback: bare label if augmented query returns nothing
     │
     ▼
 Gemma 4             →  grounded answer
@@ -224,10 +278,10 @@ Graph tab           →  answer panel + source excerpts + involved nodes pulse g
 | v1.2 | Analytics dashboard (Plotly), unit tests, GitHub Actions CI |
 | v2.0 | Replaced BART + spaCy/TF-IDF with Gemma 4 (e4b) via Ollama; typed entity extraction |
 | v2.5 | RAG Chat-with-Video: ChromaDB + LangChain + Ollama nomic-embed-text; Chat tab |
-| **v2.6** | **Knowledge Graph: D3.js force graph + KG-RAG (graph-guided retrieval); Graph tab; node/edge Q&A; dark fantasy UI** |
+| v2.6 | Knowledge Graph: D3.js force graph + KG-RAG (graph-guided retrieval); Graph tab; node/edge Q&A; dark fantasy UI |
+| **v3.0** | **Fact-Checking: Gemma claim extraction + DuckDuckGo web search + verdict cards; inline highlights; Fact Check tab** |
 
 **Planned:**
-- v3.0 — Claim extraction + fact-checking against web sources
 - v4.0 — Docker + live demo deployment
 
 ---
@@ -249,7 +303,7 @@ The **Analytics tab** shows six charts, all computed locally with no extra model
 
 ## Tech Stack
 
-Python · Gemma 4 e4b (Ollama) · nomic-embed-text (Ollama) · LangChain · ChromaDB · D3.js · OpenAI Whisper · Flask · Plotly · fpdf2 · python-docx · yt-dlp · textstat
+Python · Gemma 4 e4b (Ollama) · nomic-embed-text (Ollama) · LangChain · ChromaDB · D3.js · DuckDuckGo Search · OpenAI Whisper · Flask · Plotly · fpdf2 · python-docx · yt-dlp · textstat
 
 ---
 

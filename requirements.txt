@@ -26,8 +26,10 @@ requests>=2.31.0
 # Before first use:  ollama pull nomic-embed-text
 langchain>=1.0.0
 langchain-community>=0.4.0
+langchain-ollama>=0.3.0
+langchain-chroma>=0.2.0
 langchain-text-splitters>=0.3.0
-chromadb>=0.5.0,<1.0
+chromadb>=0.5.0,<2.0
 
 # Speech-to-text fallback (Whisper — GPU accelerated, kept for uncaptioned videos)
 # PyTorch CUDA 12.8 build — targets RTX 4060 (Ada Lovelace / CUDA 12.x)
@@ -55,3 +57,6 @@ textstat>=0.7.3               # Readability scoring
 # Utilities
 tqdm>=4.66.0
 colorama>=0.4.6
+
+# Fact-checking (v3.0) — DuckDuckGo web search (no API key required)
+duckduckgo-search>=6.2.0

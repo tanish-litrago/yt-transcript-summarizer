@@ -47,12 +47,12 @@ def _get_splitter():
 
 
 def _get_embeddings():
-    from langchain_community.embeddings import OllamaEmbeddings
+    from langchain_ollama import OllamaEmbeddings
     return OllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_HOST)
 
 
 def _get_chroma():
-    from langchain_community.vectorstores import Chroma
+    from langchain_chroma import Chroma
     return Chroma
 
 
