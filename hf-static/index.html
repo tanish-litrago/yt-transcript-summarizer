@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube Transcript Summarizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--panel:#12121a;--line:#2a2a36;--text:#d0cdc8;--dim:#8a8578;--gold:#c8973a;--rose:#9b4a5e}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.65 Inter,system-ui,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:0 20px 80px}
+h1,h2,h3{font-family:"Crimson Pro",Georgia,serif;font-weight:700;margin:0;color:#ece6d8;line-height:1.15}
+h1{font-size:clamp(2.4rem,6vw,4.2rem);letter-spacing:-.01em}
+h2{font-size:1.9rem;margin-bottom:14px}
+h3{font-size:1.25rem;color:var(--gold);margin-bottom:6px}
+p{margin:0 0 14px;max-width:68ch}
+a{color:var(--gold)}
+a:focus-visible,.btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.hero{padding:72px 0 36px}
+.hero p{font-size:1.15rem;color:var(--text);margin-top:18px}
+.btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.btn{display:inline-block;padding:11px 20px;border:1px solid var(--gold);color:var(--gold);text-decoration:none;font-weight:500}
+.btn.solid{background:var(--gold);color:#0a0a0f}
+.btn:hover{background:var(--rose);border-color:var(--rose);color:#fff}
+section{padding:44px 0 0}
+.frame{position:relative;background:var(--panel);border:1px solid var(--line);padding:10px}
+.frame::before,.frame::after{content:"";position:absolute;width:16px;height:16px;border:2px solid var(--gold)}
+.frame::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.frame::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.frame img{display:block;width:100%;height:auto}
+.missing{padding:60px 20px;text-align:center;color:var(--dim);font-size:.9rem}
+figcaption{padding:10px 4px 2px;color:var(--dim);font-size:.9rem}
+figure{margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:34px 26px;margin-top:22px}
+.grid>div{display:flex;flex-direction:column}
+.grid .frame{margin-top:auto}
+.frame a{display:block}
+.flow{list-style:none;margin:18px 0 0;padding:0;border-left:2px solid var(--line)}
+.flow li{padding:0 0 18px 20px;position:relative}
+.flow li::before{content:"";position:absolute;left:-6px;top:9px;width:10px;height:10px;background:var(--rose)}
+.flow b{color:#ece6d8;font-weight:500}
+.stack{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.stack span{border:1px solid var(--line);padding:4px 12px;font-size:.9rem;color:var(--dim)}
+pre{background:var(--panel);border:1px solid var(--line);padding:16px;overflow-x:auto;color:var(--gold);font-size:.95rem}
+footer{margin-top:60px;padding-top:22px;border-top:1px solid var(--line);color:var(--dim);font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+<h1>YouTube Transcript Summarizer</h1>
+<p>Paste a YouTube link and get structured notes from Gemma 4 running on your own GPU. Then chat with the video, explore it as a knowledge graph, and fact-check its claims. No hosted AI APIs.</p>
+<div class="btns">
+<a class="btn solid" href="https://github.com/tanish-litrago/yt-transcript-summarizer">View on GitHub</a>
+<a class="btn" href="#run">Run it yourself</a>
+</div>
+</header>
+
+<section>
+<h2>The knowledge graph</h2>
+<p>Gemma extracts the people, ideas and relationships from the transcript and draws them as a graph. Click a node or an edge to ask what the video says about it. Faint dashed lines are links the model is less sure about.</p>
+<figure class="frame">
+<a href="images/graph.png" target="_blank" rel="noopener"><img src="images/graph.png" alt="Force-directed knowledge graph of an example video"></a>
+<figcaption>Graph for this video: <a href="https://youtu.be/IHZwWFHWa-w">watch the source on YouTube</a></figcaption>
+</figure>
+</section>
+
+<section>
+<h2>What it does</h2>
+<div class="grid">
+<div><h3>Summary and notes</h3><p>Structured notes with keywords and entities, exportable to Markdown, PDF and Word.</p><figure class="frame"><a href="images/summary.png" target="_blank" rel="noopener"><img src="images/summary.png" alt="Summary tab"></a></figure></div>
+<div><h3>Chat with the video</h3><p>Ask questions and get answers pulled from the transcript with retrieval over a local vector store.</p><figure class="frame"><a href="images/chat.png" target="_blank" rel="noopener"><img src="images/chat.png" alt="Chat tab"></a></figure></div>
+<div><h3>Fact check</h3><p>Pulls out checkable claims, searches the web for each, and marks it supported, contradicted, partly supported or unverifiable.</p><figure class="frame"><a href="images/factcheck.png" target="_blank" rel="noopener"><img src="images/factcheck.png" alt="Fact check tab"></a></figure></div>
+<div><h3>Analytics</h3><p>Readability, speaking pace, sentiment over time, word frequency and entity types.</p><figure class="frame"><a href="images/analytics.png" target="_blank" rel="noopener"><img src="images/analytics.png" alt="Analytics tab"></a></figure></div>
+</div>
+</section>
+
+<section>
+<h2>How it works</h2>
+<ol class="flow">
+<li><b>Transcript.</b> Fetched from YouTube, with a Whisper speech-to-text fallback when captions are missing.</li>
+<li><b>Summary.</b> Gemma 4 (e4b) through Ollama writes the notes, keywords and entities.</li>
+<li><b>Chat.</b> The transcript is chunked and embedded into ChromaDB, and answers are grounded in the retrieved chunks.</li>
+<li><b>Graph.</b> Gemma extracts nodes and edges, and a D3.js view lets you query any part of the graph.</li>
+<li><b>Fact check.</b> Claims go through a web search, then Gemma compares each one against what was found.</li>
+</ol>
+<div class="stack"><span>Python</span><span>Flask</span><span>Ollama</span><span>Gemma 4</span><span>ChromaDB</span><span>LangChain</span><span>Whisper</span><span>D3.js</span><span>Plotly</span><span>Docker</span></div>
+</section>
+
+<section id="run">
+<h2>Run it yourself</h2>
+<p>This page only shows the project. The app runs on your own machine, since the model needs a GPU. You need Docker Desktop and an NVIDIA GPU.</p>
+<pre>git clone https://github.com/tanish-litrago/yt-transcript-summarizer
+cd yt-transcript-summarizer
+docker compose up --build</pre>
+<p>Then open <b>localhost:5000</b>. The first run downloads the models (several GB).</p>
+</section>
+
+<footer>Built by Tanish. Open source under AGPL-3.0.</footer>
+</main>
+<script>
+document.querySelectorAll('.frame img').forEach(function(img){
+img.addEventListener('error',function(){
+var d=document.createElement('div');d.className='missing';d.textContent='Add '+img.getAttribute('src');img.replaceWith(d)})})
+</script>
+</body>
+</html>
