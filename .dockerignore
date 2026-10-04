@@ -1,0 +1,10 @@
+﻿.git
+.github
+venv
+__pycache__
+*.pyc
+outputs
+models_cache
+HANDOFF.md
+tests
+.pytest_cache
