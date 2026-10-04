@@ -1,10 +1,12 @@
 # YouTube Transcript Summarizer & Note Maker
-### v3.0 — Local LLM · RAG Chat · Knowledge Graph · Fact-Checking
+### v3.1 — Local LLM · RAG Chat · Knowledge Graph · Fact-Checking · Docker
 
 > Paste a YouTube URL → get structured Markdown / PDF / DOCX notes, **chat with the video**,
 > **explore its knowledge graph**, and **fact-check key claims against the web** — all powered
 > by **Gemma 4 (e4b)** running fully locally on your NVIDIA RTX GPU via Ollama.
 > No cloud APIs. No data leaves your machine.
+
+**Showcase page:** https://huggingface.co/spaces/tanish-litrago/yt-transcript-summarizer
 
 [![CI](https://github.com/tanish-litrago/yt-transcript-summarizer/actions/workflows/ci.yml/badge.svg)](https://github.com/tanish-litrago/yt-transcript-summarizer/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat-square&logo=python)
@@ -170,6 +172,49 @@ python main.py --url "https://www.youtube.com/watch?v=VIDEO_ID"
 
 ---
 
+## Run with Docker
+
+Runs Ollama, the model downloads, and the web app together with one command. No Python setup needed.
+
+**Requirements**
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WSL 2 backend on Windows)
+- NVIDIA GPU with a current driver. Docker Desktop handles GPU passthrough; no extra toolkit is needed on Windows.
+
+**Start**
+
+```bash
+docker compose up --build
+```
+
+The first run builds the image and downloads `gemma4:e4b` and `nomic-embed-text` (several GB, stored in a Docker volume so it only happens once). When the Flask banner appears, open `http://localhost:5000`.
+
+**Everyday use**
+
+```bash
+docker compose up -d        # start in the background
+docker compose logs -f app  # follow the app logs
+docker compose down         # stop (models and outputs are kept)
+```
+
+Generated files (notes, caches, history) are written to `./outputs` on your machine.
+
+| Service | Role |
+| ------- | ---- |
+| `ollama` | Serves Gemma 4 and the embedding model on the GPU |
+| `ollama-pull` | One-shot job that pulls the models, then exits |
+| `app` | Flask web UI on port 5000 (also runs the Whisper fallback on the GPU) |
+
+**Without a GPU:** remove the two `deploy:` blocks in `docker-compose.yml` and build with the CPU PyTorch wheels:
+
+```bash
+docker compose build --build-arg TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+```
+
+Gemma will be much slower on CPU. The app reads the Ollama address from the `OLLAMA_URL` environment variable (default `http://localhost:11434`).
+
+---
+
 ## Project Structure
 
 ```
@@ -178,6 +223,9 @@ yt-transcript-summarizer/
 ├── main.py                         # CLI entry point
 ├── config.py                       # Model name, paths, Ollama host, RAG + KG + FC config
 ├── requirements.txt
+├── Dockerfile                      # App image (CUDA PyTorch, ffmpeg)
+├── docker-compose.yml              # ollama + model pull + app
+├── .dockerignore
 ├── src/
 │   ├── gemma_engine.py             # Gemma 4 (Ollama) — summarization + keywords + entities
 │   ├── rag_engine.py               # RAG engine — ChromaDB + LangChain + Ollama embeddings
@@ -279,10 +327,11 @@ Graph tab           →  answer panel + source excerpts + involved nodes pulse g
 | v2.0 | Replaced BART + spaCy/TF-IDF with Gemma 4 (e4b) via Ollama; typed entity extraction |
 | v2.5 | RAG Chat-with-Video: ChromaDB + LangChain + Ollama nomic-embed-text; Chat tab |
 | v2.6 | Knowledge Graph: D3.js force graph + KG-RAG (graph-guided retrieval); Graph tab; node/edge Q&A; dark fantasy UI |
-| **v3.0** | **Fact-Checking: Gemma claim extraction + DuckDuckGo web search + verdict cards; inline highlights; Fact Check tab** |
+| v3.0 | Fact-Checking: Gemma claim extraction + DuckDuckGo web search + verdict cards; inline highlights; Fact Check tab |
+| **v3.1** | **Docker: one-command setup with docker-compose (Ollama + model pull + app); `OLLAMA_URL` env var; Hugging Face showcase page** |
 
 **Planned:**
-- v4.0 — Docker + live demo deployment
+- v4.0 — Hosted live demo (needs paid GPU hosting; inference stays local, no hosted LLM APIs)
 
 ---
 
